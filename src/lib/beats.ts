@@ -57,6 +57,38 @@ export const publishedBeatsQuery = {
   },
 };
 
+export function beatBySlugQuery(slug: string) {
+  return {
+    queryKey: ["beat", "slug", slug],
+    queryFn: async (): Promise<Beat | null> => {
+      const { data, error } = await supabase
+        .from("beats")
+        .select(BEAT_COLUMNS)
+        .eq("slug", slug)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as unknown as Beat) ?? null;
+    },
+  };
+}
+
+export function likedBeatsQuery(userId: string) {
+  return {
+    queryKey: ["liked-beats", userId],
+    queryFn: async (): Promise<Beat[]> => {
+      const { data, error } = await supabase
+        .from("likes")
+        .select(`beat:beats(${BEAT_COLUMNS})`)
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? [])
+        .map((row) => (row as unknown as { beat: Beat | null }).beat)
+        .filter((b): b is Beat => !!b);
+    },
+  };
+}
+
 export const beatStatsQuery = {
   queryKey: ["beat-stats"],
   staleTime: 30_000,

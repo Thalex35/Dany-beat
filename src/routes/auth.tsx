@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 
@@ -89,16 +88,23 @@ function AuthPage() {
   async function handleGoogle() {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      // supabase-js redirects the browser to Google itself, so on success this
+      // call never resolves with control back to us — only failures return here.
+      // Flag the attempt so the auth listener can log the login once we land back.
+      window.sessionStorage.setItem("pending_oauth_login", "1");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}${destination}`,
+        },
       });
-      if (result.error) {
+      if (error) {
+        window.sessionStorage.removeItem("pending_oauth_login");
         toast.error("Google sign-in failed. Please try again.");
-        return;
+        setBusy(false);
       }
-      if (result.redirected) return;
-      void track("user_login");
-    } finally {
+    } catch {
+      toast.error("Google sign-in failed. Please try again.");
       setBusy(false);
     }
   }

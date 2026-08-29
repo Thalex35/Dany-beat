@@ -9,7 +9,7 @@ import { Input, Select } from "@/components/ui/field";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { beatStatsQuery, publishedBeatsQuery } from "@/lib/beats";
 
-export const Route = createFileRoute("/beats")({
+export const Route = createFileRoute("/beats/")({
   head: () => ({
     meta: [
       { title: "Beat Catalog — Rap, Trap & Afro Instrumentals | Dany Beats" },
@@ -108,7 +108,11 @@ function BeatsPage() {
               className="pl-11"
             />
           </div>
-          <Select value={genre} onChange={(e) => setGenre(e.target.value)} aria-label="Filter by genre">
+          <Select
+            value={genre}
+            onChange={(e) => setGenre(e.target.value)}
+            aria-label="Filter by genre"
+          >
             <option value="all">All genres</option>
             {genres.map((g) => (
               <option key={g} value={g}>
@@ -116,7 +120,11 @@ function BeatsPage() {
               </option>
             ))}
           </Select>
-          <Select value={mood} onChange={(e) => setMood(e.target.value)} aria-label="Filter by mood">
+          <Select
+            value={mood}
+            onChange={(e) => setMood(e.target.value)}
+            aria-label="Filter by mood"
+          >
             <option value="all">All moods</option>
             {moods.map((m) => (
               <option key={m} value={m}>
@@ -128,7 +136,9 @@ function BeatsPage() {
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            {beats.isPending ? "Loading…" : `${filtered.length} beat${filtered.length === 1 ? "" : "s"}`}
+            {beats.isPending
+              ? "Loading…"
+              : `${filtered.length} beat${filtered.length === 1 ? "" : "s"}`}
           </p>
           <Select
             value={sort}
