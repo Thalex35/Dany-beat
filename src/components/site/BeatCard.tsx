@@ -15,8 +15,7 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
     <article className="group flex flex-col gap-4">
       <div className="relative aspect-square w-full overflow-hidden rounded-2xl ring-1 ring-border">
         <Link
-          to="/beats/$slug"
-          params={{ slug: beat.slug }}
+          to="/beats"
           aria-label={`Open ${beat.title}`}
           className="block h-full w-full"
         >
@@ -37,7 +36,7 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-base font-medium">
-            <Link to="/beats/$slug" params={{ slug: beat.slug }} className="hover:text-primary">
+            <Link to="/beats" className="hover:text-primary">
               {beat.title}
             </Link>
           </h3>

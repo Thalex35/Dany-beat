@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 
@@ -89,15 +88,16 @@ function AuthPage() {
   async function handleGoogle() {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        },
       });
-      if (result.error) {
-        toast.error("Google sign-in failed. Please try again.");
-        return;
-      }
-      if (result.redirected) return;
+      if (error) throw error;
       void track("user_login");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Google sign-in failed. Please try again.");
     } finally {
       setBusy(false);
     }

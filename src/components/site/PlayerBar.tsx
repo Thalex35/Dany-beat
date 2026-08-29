@@ -17,8 +17,7 @@ export function PlayerBar() {
       <div className="mx-auto max-w-5xl rounded-2xl bg-surface/95 p-3 shadow-2xl ring-1 ring-border backdrop-blur-xl sm:p-4">
         <div className="flex items-center gap-3 sm:gap-4">
           <Link
-            to="/beats/$slug"
-            params={{ slug: current.slug }}
+            to="/beats"
             className="shrink-0"
             aria-label={`Open ${current.title}`}
           >

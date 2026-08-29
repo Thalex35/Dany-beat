@@ -15,7 +15,7 @@ const links = [
 
 export function Header() {
   const [open, setOpen] = useState(false);
-  const { user, isAdmin, profile } = useAuth();
+  const { user } = useAuth();
   const { data: settings } = useSettings();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -49,20 +49,10 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          {isAdmin ? (
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/admin">Admin</Link>
-            </Button>
-          ) : null}
           {user ? (
-            <>
-              <Button asChild variant="surface" size="sm">
-                <Link to="/profile">{profile?.display_name ?? "My account"}</Link>
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                Sign out
-              </Button>
-            </>
+            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+              Sign out
+            </Button>
           ) : (
             <Button asChild size="sm">
               <Link to="/auth">Sign in</Link>
@@ -93,34 +83,16 @@ export function Header() {
                 {l.label}
               </Link>
             ))}
-            {isAdmin ? (
-              <Link
-                to="/admin"
-                onClick={() => setOpen(false)}
-                className="rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
-              >
-                Admin
-              </Link>
-            ) : null}
             {user ? (
-              <>
-                <Link
-                  to="/profile"
-                  onClick={() => setOpen(false)}
-                  className="rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
-                >
-                  My account
-                </Link>
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    void handleSignOut();
-                  }}
-                  className="rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
-                >
-                  Sign out
-                </button>
-              </>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  void handleSignOut();
+                }}
+                className="rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+              >
+                Sign out
+              </button>
             ) : (
               <Link
                 to="/auth"
