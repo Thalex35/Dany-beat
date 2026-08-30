@@ -88,15 +88,23 @@ function AuthPage() {
   async function handleGoogle() {
     setBusy(true);
     try {
+      // supabase-js redirects the browser to Google itself, so on success this
+      // call never resolves with control back to us — only failures return here.
+      // Flag the attempt so the auth listener can log the login once we land back.
+      window.sessionStorage.setItem("pending_oauth_login", "1");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: `${window.location.origin}${destination}`,
         },
       });
-      if (error) throw error;
+      if (error) {
+        window.sessionStorage.removeItem("pending_oauth_login");
+        throw error;
+      }
       void track("user_login");
     } catch (error) {
+      window.sessionStorage.removeItem("pending_oauth_login");
       toast.error(error instanceof Error ? error.message : "Google sign-in failed. Please try again.");
     } finally {
       setBusy(false);
