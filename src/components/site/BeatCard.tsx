@@ -1,14 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { Mail, Pause, Play, RotateCcw } from "lucide-react";
 
 import { CartButton } from "@/components/site/CartButton";
 import { Cover } from "@/components/site/Cover";
 import { LikeButton } from "@/components/site/LikeButton";
+import { useSettings } from "@/lib/settings";
+import { openEmail } from "@/lib/contact";
 import { formatCount, formatPrice, type Beat, type BeatStats } from "@/lib/beats";
 import { usePlayer } from "@/lib/player";
 
 export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
   const { current, playing, finished, toggle } = usePlayer();
+  const { data: settings } = useSettings();
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
 
@@ -87,6 +90,23 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
           <span>{formatCount(stats?.plays)} écoutes</span>
           <LikeButton beatId={beat.id} count={stats?.likes} />
         </div>
+        {settings?.contact_email ? (
+          <button
+            type="button"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+            aria-label={`Envoyer un e-mail à propos de ${beat.title}`}
+            title="Envoyer par e-mail"
+            onClick={() =>
+              openEmail({
+                to: settings.contact_email,
+                subject: `Demande de licence : ${beat.title}`,
+                body: `Bonjour,\n\nJe suis intéressé par le beat « ${beat.title} ».\n\nPouvez-vous me renseigner sur les licences disponibles ?\n\nMerci.`,
+              })
+            }
+          >
+            <Mail className="size-4" aria-hidden="true" />
+          </button>
+        ) : null}
         <CartButton beatId={beat.id} className="ml-auto" />
       </div>
     </article>

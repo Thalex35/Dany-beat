@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Pause, Pencil, Play, Plus, Trash2, Upload } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Cover } from "@/components/site/Cover";
@@ -98,6 +98,7 @@ function AdminBeats() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState | null>(null);
   const [selectedBeat, setSelectedBeat] = useState<Beat | null>(null);
+  const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
   const { current, playing, toggle } = usePlayer();
 
@@ -112,6 +113,15 @@ function AdminBeats() {
       return (data ?? []) as unknown as Beat[];
     },
   });
+  const filteredBeats = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return beats.data ?? [];
+    return (beats.data ?? []).filter((beat) =>
+      [beat.title, beat.slug, beat.genre, beat.mood, ...(beat.tags ?? [])]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(query)),
+    );
+  }, [beats.data, search]);
 
   const save = useMutation({
     mutationFn: async (state: FormState) => {
@@ -510,19 +520,30 @@ function AdminBeats() {
       ) : null}
 
       <div>
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Rechercher un beat par titre, genre ou tag"
+          aria-label="Rechercher dans les beats"
+          className="mb-4 max-w-xl"
+        />
         {beats.isPending ? (
           <div className="space-y-3">
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />
           </div>
-        ) : (beats.data ?? []).length === 0 ? (
+        ) : filteredBeats.length === 0 ? (
           <EmptyState
-            title="Aucun beat pour le moment"
-            description="Importez votre première instrumentale pour ouvrir le catalogue."
+            title={search ? "Aucun beat trouvé" : "Aucun beat pour le moment"}
+            description={
+              search
+                ? "Essayez un autre titre, genre ou tag."
+                : "Importez votre première instrumentale pour ouvrir le catalogue."
+            }
           />
         ) : (
           <ul className="space-y-3">
-            {(beats.data ?? []).map((beat) => (
+            {filteredBeats.map((beat) => (
               <li
                 key={beat.id}
                 className="admin-beat-row flex cursor-pointer items-center gap-4 rounded-2xl bg-surface p-3 ring-1 ring-border"
