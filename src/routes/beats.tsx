@@ -177,9 +177,9 @@ function BeatsPage() {
               {all.map((beat) => {
                 const s = stats.data?.[beat.id];
                 return s ? (
-                  <BeatCard key={beat.id} beat={beat} stats={s} />
+                  <BeatCard key={beat.id} beat={beat} stats={s} queue={all} />
                 ) : (
-                  <BeatCard key={beat.id} beat={beat} />
+                  <BeatCard key={beat.id} beat={beat} queue={all} />
                 );
               })}
             </div>

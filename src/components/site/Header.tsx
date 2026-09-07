@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Menu, ShoppingCart, X } from "lucide-react";
+import { Heart, Menu, ShoppingCart, X } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,12 @@ export function Header() {
           ) : null}
           {user ? (
             <>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/profile" hash="favorites" aria-label="Voir mes favoris">
+                  <Heart />
+                  Favoris
+                </Link>
+              </Button>
               <Button asChild variant="surface" size="sm">
                 <Link to="/profile">{profile?.display_name ?? "Mon compte"}</Link>
               </Button>
@@ -106,6 +112,15 @@ export function Header() {
             ) : null}
             {user ? (
               <>
+                <Link
+                  to="/profile"
+                  hash="favorites"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+                >
+                  <Heart className="size-4" aria-hidden="true" />
+                  Favoris
+                </Link>
                 <Link
                   to="/profile"
                   onClick={() => setOpen(false)}

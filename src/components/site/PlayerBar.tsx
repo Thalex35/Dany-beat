@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Pause, Play, RotateCcw, Volume2, X } from "lucide-react";
+import { Ear, Pause, Play, Repeat, RotateCcw, Volume2, X } from "lucide-react";
 
 import { Cover } from "@/components/site/Cover";
 import { Spinner } from "@/components/ui/states";
@@ -16,7 +16,9 @@ export function PlayerBar() {
     progress,
     duration,
     volume,
+    loop,
     toggle,
+    setLoop,
     seek,
     setVolume,
     stop,
@@ -75,6 +77,15 @@ export function PlayerBar() {
             ) : (
               <Play className="size-4" />
             )}
+          </button>
+          <button
+            onClick={() => setLoop(!loop)}
+            aria-pressed={loop}
+            aria-label={loop ? "Désactiver la lecture en boucle" : "Activer la lecture en boucle"}
+            title={loop ? "Désactiver la boucle" : "Activer la boucle"}
+            className={loop ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+          >
+            <Repeat className="size-4" />
           </button>
           <button
             onClick={stop}
