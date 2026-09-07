@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { useCartIds, useToggleCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
+import { safeAuthRedirect } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
 export function CartButton({
@@ -30,7 +31,10 @@ export function CartButton({
       onClick={() => {
         if (!user) {
           toast("Connectez-vous pour ajouter des beats au panier");
-          navigate({ to: "/auth", search: { redirect: window.location.pathname } });
+          navigate({
+            to: "/auth",
+            search: { redirect: safeAuthRedirect(window.location.pathname) },
+          });
           return;
         }
         toggle.mutate({ beatId, inCart });

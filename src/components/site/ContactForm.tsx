@@ -10,7 +10,13 @@ type FormState = { name: string; email: string; message: string };
 
 const initialState: FormState = { name: "", email: "", message: "" };
 
-export function ContactForm({ compact = false }: { compact?: boolean }) {
+export function ContactForm({
+  compact = false,
+  bare = false,
+}: {
+  compact?: boolean;
+  bare?: boolean;
+}) {
   const { data: settings } = useSettings();
   const [form, setForm] = useState<FormState>(initialState);
   const [ready, setReady] = useState(false);
@@ -57,8 +63,8 @@ export function ContactForm({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className={compact ? "" : "panel p-6 sm:p-10"}>
-      {!compact ? (
+    <div className={compact || bare ? "" : "panel p-6 sm:p-10"}>
+      {!compact && !bare ? (
         <>
           <p className="eyebrow">Contact</p>
           <h2 className="font-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -70,12 +76,12 @@ export function ContactForm({ compact = false }: { compact?: boolean }) {
             envoyer.
           </p>
         </>
-      ) : (
+      ) : compact ? (
         <>
           <p className="eyebrow">Contact</p>
           <h3 className="font-display mt-2 text-xl font-semibold tracking-tight">Une question ?</h3>
         </>
-      )}
+      ) : null}
 
       {!ready ? (
         <form onSubmit={handleSubmit} className="mt-6 max-w-md space-y-4">

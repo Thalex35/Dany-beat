@@ -23,6 +23,7 @@ export type PlayerTrack = {
 type PlayerValue = {
   current: PlayerTrack | null;
   playing: boolean;
+  finished: boolean;
   loading: boolean;
   error: string | null;
   progress: number;
@@ -41,6 +42,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [current, setCurrent] = useState<PlayerTrack | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [finished, setFinished] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -54,7 +56,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audioRef.current = audio;
     const onTime = () => setProgress(audio.currentTime);
     const onMeta = () => setDuration(audio.duration || 0);
-    const onEnd = () => setPlaying(false);
+    const onEnd = () => {
+      setPlaying(false);
+      setFinished(true);
+    };
     const onErr = () => {
       setError("Cet extrait n'a pas pu être chargé.");
       setPlaying(false);
@@ -78,7 +83,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const audio = audioRef.current;
       if (!audio) return;
       setError(null);
+      setFinished(false);
       if (current?.id === next.id && audio.src) {
+        if (audio.ended) audio.currentTime = 0;
         try {
           await audio.play();
           setPlaying(true);
@@ -154,6 +161,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.removeAttribute("src");
     }
     setPlaying(false);
+    setFinished(false);
     setCurrent(null);
   }, []);
 
@@ -162,6 +170,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       value={{
         current,
         playing,
+        finished,
         loading,
         error,
         progress,

@@ -89,8 +89,8 @@ function ProfilePage() {
 
   return (
     <SiteLayout>
-      <div className="mx-auto max-w-4xl px-5 py-14 sm:px-8 sm:py-20">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="public-account-page mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
+        <div className="profile-hero flex flex-wrap items-start justify-between gap-4 rounded-3xl p-7 sm:p-9">
           <div>
             <h1 className="font-display text-4xl font-semibold tracking-tighter">Mon compte</h1>
             <p className="mt-2 text-sm text-muted-foreground">{user?.email}</p>
@@ -102,7 +102,7 @@ function ProfilePage() {
         </div>
 
         <form
-          className="mt-10 max-w-md space-y-4"
+          className="profile-form mt-8 max-w-2xl space-y-4 rounded-3xl p-6 sm:p-8"
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate();
@@ -130,7 +130,7 @@ function ProfilePage() {
           </Button>
         </form>
 
-        <section className="mt-16">
+        <section className="profile-favorites mt-16">
           <h2 className="font-display text-2xl font-semibold tracking-tight">Beats favoris</h2>
           <div className="mt-8">
             {liked.isPending ? (

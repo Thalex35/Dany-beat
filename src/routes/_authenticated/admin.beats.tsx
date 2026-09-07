@@ -1,18 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Pause, Pencil, Play, Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Cover } from "@/components/site/Cover";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Badge, EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { BEAT_COLUMNS, formatPrice, slugify, type Beat, type License } from "@/lib/beats";
 import { fileExtension } from "@/lib/media";
+import { usePlayer } from "@/lib/player";
 
 export const Route = createFileRoute("/_authenticated/admin/beats")({
   component: AdminBeats,
@@ -89,7 +97,9 @@ function AdminBeats() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState | null>(null);
+  const [selectedBeat, setSelectedBeat] = useState<Beat | null>(null);
   const [uploading, setUploading] = useState(false);
+  const { current, playing, toggle } = usePlayer();
 
   const beats = useQuery({
     queryKey: ["admin-beats"],
@@ -193,11 +203,15 @@ function AdminBeats() {
   }
 
   return (
-    <div className="space-y-10">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          {beats.data?.length ?? 0} beat{(beats.data?.length ?? 0) === 1 ? "" : "s"} au catalogue
-        </p>
+    <div className="admin-beats-page space-y-10">
+      <div className="admin-page-heading">
+        <div>
+          <p className="eyebrow text-primary">Bibliothèque studio</p>
+          <h1 className="font-display mt-2 text-4xl font-semibold tracking-tight">Beats</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {beats.data?.length ?? 0} beat{(beats.data?.length ?? 0) === 1 ? "" : "s"} au catalogue
+          </p>
+        </div>
         <Button size="sm" onClick={() => setForm(blankForm)}>
           <Plus />
           Nouveau beat
@@ -206,13 +220,16 @@ function AdminBeats() {
 
       {form ? (
         <form
-          className="rounded-3xl bg-surface p-6 ring-1 ring-border"
+          className="admin-editor-panel rounded-3xl p-6"
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate(form);
           }}
         >
-          <h2 className="font-display text-xl">{form.id ? "Modifier le beat" : "Nouveau beat"}</h2>
+          <div className="admin-section-label">
+            <Pencil />
+            <span>{form.id ? "Modifier le beat" : "Nouveau beat"}</span>
+          </div>
 
           <div className="mt-6 grid gap-5 sm:grid-cols-2">
             <Field label="Titre" htmlFor="title">
@@ -508,7 +525,13 @@ function AdminBeats() {
             {(beats.data ?? []).map((beat) => (
               <li
                 key={beat.id}
-                className="flex items-center gap-4 rounded-2xl bg-surface p-3 ring-1 ring-border"
+                className="admin-beat-row flex cursor-pointer items-center gap-4 rounded-2xl bg-surface p-3 ring-1 ring-border"
+                onClick={() => setSelectedBeat(beat)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") setSelectedBeat(beat);
+                }}
+                role="button"
+                tabIndex={0}
               >
                 <Cover path={beat.cover_path} alt="" className="size-14 rounded-xl" />
                 <div className="min-w-0 flex-1">
@@ -525,7 +548,10 @@ function AdminBeats() {
                   variant="ghost"
                   size="iconSm"
                   aria-label={`Modifier ${beat.title}`}
-                  onClick={() => setForm(toForm(beat))}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setForm(toForm(beat));
+                  }}
                 >
                   <Pencil />
                 </Button>
@@ -535,7 +561,12 @@ function AdminBeats() {
                   confirmLabel="Supprimer le beat"
                   onConfirm={() => remove.mutate(beat.id)}
                   trigger={
-                    <Button variant="ghost" size="iconSm" aria-label={`Supprimer ${beat.title}`}>
+                    <Button
+                      variant="ghost"
+                      size="iconSm"
+                      aria-label={`Supprimer ${beat.title}`}
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <Trash2 />
                     </Button>
                   }
@@ -545,6 +576,111 @@ function AdminBeats() {
           </ul>
         )}
       </div>
+
+      <Dialog open={!!selectedBeat} onOpenChange={(open) => !open && setSelectedBeat(null)}>
+        {selectedBeat ? (
+          <DialogContent className="admin-beat-dialog max-h-[90vh] max-w-3xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-display text-3xl tracking-tight">
+                {selectedBeat.title}
+              </DialogTitle>
+              <DialogDescription>
+                Vue détaillée de cette instrumentale dans le catalogue.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-7 pt-3 md:grid-cols-[15rem_1fr]">
+              <div>
+                <Cover
+                  path={selectedBeat.cover_path}
+                  alt={`Pochette de ${selectedBeat.title}`}
+                  className="aspect-square w-full rounded-2xl"
+                />
+                <Button
+                  block
+                  className="mt-4"
+                  onClick={() =>
+                    toggle({
+                      id: selectedBeat.id,
+                      title: selectedBeat.title,
+                      slug: selectedBeat.slug,
+                      bpm: selectedBeat.bpm,
+                      coverPath: selectedBeat.cover_path,
+                      previewPath: selectedBeat.preview_path,
+                    })
+                  }
+                  disabled={!selectedBeat.preview_path}
+                >
+                  {current?.id === selectedBeat.id && playing ? <Pause /> : <Play />}
+                  {current?.id === selectedBeat.id && playing ? "Pause" : "Écouter / rejouer"}
+                </Button>
+                {!selectedBeat.preview_path ? (
+                  <p className="mt-2 text-xs text-muted-foreground">Aucun extrait audio importé.</p>
+                ) : null}
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone={selectedBeat.status === "published" ? "success" : "neutral"}>
+                    {selectedBeat.status === "published" ? "Publié" : "Brouillon"}
+                  </Badge>
+                  {selectedBeat.featured ? <Badge tone="accent">À la une</Badge> : null}
+                </div>
+                <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+                  {selectedBeat.description || "Aucune description pour ce beat."}
+                </p>
+                <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border sm:grid-cols-4">
+                  {[
+                    { label: "Genre", value: selectedBeat.genre || "—" },
+                    { label: "Ambiance", value: selectedBeat.mood || "—" },
+                    { label: "BPM", value: selectedBeat.bpm || "—" },
+                    { label: "Tonalité", value: selectedBeat.song_key || "—" },
+                  ].map((fact) => (
+                    <div key={fact.label} className="bg-background px-3 py-3">
+                      <dt className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                        {fact.label}
+                      </dt>
+                      <dd className="mt-1 text-sm font-medium">{fact.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {selectedBeat.tags.length ? (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {selectedBeat.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-surface-2 px-3 py-1 text-xs text-muted-foreground"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="mt-6 border-t border-border pt-5">
+                  <p className="eyebrow">Licences</p>
+                  <div className="mt-3 grid gap-2">
+                    {selectedBeat.licenses.map((license) => (
+                      <div
+                        key={license.id}
+                        className="flex items-center justify-between rounded-xl bg-surface-2 px-3 py-2 text-sm"
+                      >
+                        <span>
+                          {license.name}{" "}
+                          <span className="text-xs text-muted-foreground">· {license.files}</span>
+                        </span>
+                        <strong className="text-primary">{formatPrice(license.price)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-5 text-xs text-muted-foreground">
+                  Fichiers: {selectedBeat.cover_path ? "pochette" : "sans pochette"} ·{" "}
+                  {selectedBeat.preview_path ? "extrait audio" : "sans extrait"} ·{" "}
+                  {selectedBeat.master_path ? "master privé" : "sans master"}
+                </p>
+              </div>
+            </div>
+          </DialogContent>
+        ) : null}
+      </Dialog>
     </div>
   );
 }

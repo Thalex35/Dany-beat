@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Pause, Play } from "lucide-react";
+import { Pause, Play, RotateCcw } from "lucide-react";
 
 import { CartButton } from "@/components/site/CartButton";
 import { Cover } from "@/components/site/Cover";
@@ -8,13 +8,13 @@ import { formatCount, formatPrice, type Beat, type BeatStats } from "@/lib/beats
 import { usePlayer } from "@/lib/player";
 
 export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
-  const { current, playing, toggle } = usePlayer();
+  const { current, playing, finished, toggle } = usePlayer();
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
 
   return (
     <article className="group flex flex-col gap-4">
-      <div className="relative aspect-square w-full overflow-hidden rounded-2xl ring-1 ring-border">
+      <div className="public-beat-art relative aspect-square w-full overflow-hidden rounded-2xl ring-1 ring-border">
         <Link
           to="/beats/$slug"
           params={{ slug: beat.slug }}
@@ -53,7 +53,7 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
         <span className="font-display font-medium text-primary">{formatPrice(beat.price)}</span>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="public-beat-actions flex items-center gap-4">
         <button
           type="button"
           onClick={() =>
@@ -66,10 +66,22 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
               previewPath: beat.preview_path,
             })
           }
-          aria-label={isPlaying ? `Mettre ${beat.title} en pause` : `Écouter ${beat.title}`}
+          aria-label={
+            finished && isCurrent
+              ? `Rejouer ${beat.title}`
+              : isPlaying
+                ? `Mettre ${beat.title} en pause`
+                : `Écouter ${beat.title}`
+          }
           className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
         >
-          {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
+          {finished && isCurrent ? (
+            <RotateCcw className="size-4" />
+          ) : isPlaying ? (
+            <Pause className="size-4" />
+          ) : (
+            <Play className="size-4" />
+          )}
         </button>
         <div className="flex items-center gap-5 text-[10px] tracking-widest text-muted-foreground uppercase">
           <span>{formatCount(stats?.plays)} écoutes</span>

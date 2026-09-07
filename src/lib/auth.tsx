@@ -56,17 +56,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["me", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const [profileRes, rolesRes] = await Promise.all([
+      const [profileRes, roleRes] = await Promise.all([
         supabase
           .from("profiles")
           .select("id, display_name, avatar_url, bio")
           .eq("id", userId!)
           .maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", userId!),
+        supabase.rpc("has_role", { _user_id: userId!, _role: "admin" }),
       ]);
+      if (profileRes.error) throw profileRes.error;
+      if (roleRes.error) throw roleRes.error;
+
+      let profile = (profileRes.data as Profile | null) ?? null;
+      if (!profile) {
+        const displayName =
+          (session?.user.user_metadata?.display_name as string | undefined) ??
+          session?.user.email?.split("@")[0] ??
+          "Auditeur";
+        const { data: createdProfile, error: createProfileError } = await supabase
+          .from("profiles")
+          .upsert({ id: userId!, display_name: displayName }, { onConflict: "id" })
+          .select("id, display_name, avatar_url, bio")
+          .single();
+        if (createProfileError) throw createProfileError;
+        profile = createdProfile as Profile;
+      }
+
       return {
-        profile: (profileRes.data as Profile | null) ?? null,
-        isAdmin: (rolesRes.data ?? []).some((r) => r.role === "admin"),
+        profile,
+        isAdmin: Boolean(roleRes.data),
       };
     },
   });

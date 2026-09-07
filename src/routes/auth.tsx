@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
+import { safeAuthRedirect } from "@/lib/validation";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string } =>
@@ -32,11 +33,6 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-function safePath(value: string | undefined) {
-  if (!value) return "/";
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/";
-}
-
 function AuthPage() {
   const { redirect } = Route.useSearch();
   const navigate = useNavigate();
@@ -49,7 +45,7 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  const destination = safePath(redirect);
+  const destination = safeAuthRedirect(redirect);
 
   useEffect(() => {
     if (loading || !user || roleLoading) return;

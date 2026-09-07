@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Pause, Play, Volume2, X } from "lucide-react";
+import { Pause, Play, RotateCcw, Volume2, X } from "lucide-react";
 
 import { Cover } from "@/components/site/Cover";
 import { Spinner } from "@/components/ui/states";
@@ -10,6 +10,7 @@ export function PlayerBar() {
   const {
     current,
     playing,
+    finished,
     loading,
     error,
     progress,
@@ -56,11 +57,19 @@ export function PlayerBar() {
           </div>
           <button
             onClick={() => toggle()}
-            aria-label={playing ? "Mettre l'extrait en pause" : "Écouter l'extrait"}
+            aria-label={
+              finished
+                ? "Rejouer l'extrait"
+                : playing
+                  ? "Mettre l'extrait en pause"
+                  : "Écouter l'extrait"
+            }
             className="grid size-10 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
           >
             {loading ? (
               <Spinner />
+            ) : finished ? (
+              <RotateCcw className="size-4" />
             ) : playing ? (
               <Pause className="size-4" />
             ) : (

@@ -48,13 +48,15 @@ function HomePage() {
         <div className="relative mx-auto max-w-6xl px-5 py-24 sm:px-8 sm:py-32">
           <p className="flex items-center gap-2 text-[11px] tracking-[0.3em] text-primary uppercase">
             <Sparkles className="size-3.5" aria-hidden="true" />
-            Catalogue indépendant
+            {settings?.hero_eyebrow ?? "Catalogue indépendant"}
           </p>
           <h1 className="font-display mt-6 max-w-3xl text-5xl leading-[0.95] font-semibold tracking-tighter text-balance sm:text-7xl">
-            Des instrumentales pour les artistes qui prennent leur disque au sérieux.
+            {settings?.hero_title ??
+              "Des instrumentales pour les artistes qui prennent leur disque au sérieux."}
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground">
-            {bioIntro ??
+            {settings?.hero_description ||
+              bioIntro ||
               "Production rap, trap, drill et afro. Écoutez tout le catalogue, puis écrivez directement au producteur pour obtenir votre licence."}
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-3">

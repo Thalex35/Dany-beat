@@ -83,8 +83,8 @@ function BeatsPage() {
 
   return (
     <SiteLayout>
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
-        <header>
+      <div className="public-catalogue mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
+        <header className="public-page-heading">
           <h1 className="font-display text-4xl font-semibold tracking-tighter sm:text-5xl">
             Catalogue de beats
           </h1>
@@ -94,7 +94,7 @@ function BeatsPage() {
           </p>
         </header>
 
-        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="public-filter-bar mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative sm:col-span-2">
             <Search
               className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"

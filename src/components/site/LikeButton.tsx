@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { formatCount } from "@/lib/beats";
+import { safeAuthRedirect } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
 export function LikeButton({
@@ -59,11 +60,29 @@ export function LikeButton({
     onMutate: async (nextLiked) => {
       await queryClient.cancelQueries({ queryKey: ["like", beatId, user?.id] });
       const previous = queryClient.getQueryData(["like", beatId, user?.id]);
+      const previousStats = queryClient.getQueryData<Record<string, { likes: number }>>([
+        "beat-stats",
+      ]);
+
       queryClient.setQueryData(["like", beatId, user?.id], nextLiked);
-      return { previous };
+
+      if (previousStats?.[beatId]) {
+        queryClient.setQueryData(["beat-stats"], {
+          ...previousStats,
+          [beatId]: {
+            ...previousStats[beatId],
+            likes: Math.max(0, previousStats[beatId].likes + (nextLiked ? 1 : -1)),
+          },
+        });
+      }
+
+      return { previous, previousStats };
     },
     onError: (_error, _vars, context) => {
       queryClient.setQueryData(["like", beatId, user?.id], context?.previous);
+      if (context?.previousStats) {
+        queryClient.setQueryData(["beat-stats"], context.previousStats);
+      }
       toast.error("Votre favori n'a pas pu être enregistré. Réessayez.");
     },
     onSettled: () => {
@@ -72,7 +91,7 @@ export function LikeButton({
     },
   });
 
-  const optimisticCount = (count ?? 0) + (liked && !mutation.isPending ? 0 : 0);
+  const optimisticCount = (count ?? 0) + (liked === true ? 0 : mutation.isPending && !liked ? 0 : 0);
 
   return (
     <button
@@ -82,7 +101,10 @@ export function LikeButton({
       onClick={() => {
         if (!user) {
           toast("Connectez-vous pour ajouter des beats en favoris");
-          navigate({ to: "/auth", search: { redirect: window.location.pathname } });
+          navigate({
+            to: "/auth",
+            search: { redirect: safeAuthRedirect(window.location.pathname) },
+          });
           return;
         }
         mutation.mutate(!liked);

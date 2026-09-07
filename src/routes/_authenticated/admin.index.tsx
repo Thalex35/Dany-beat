@@ -76,14 +76,23 @@ function AdminOverview() {
   const top = [...(perBeat.data ?? [])].sort((a, b) => b.plays - a.plays).slice(0, 8);
 
   return (
-    <div className="space-y-12">
+    <div className="admin-dashboard space-y-12">
+      <section className="admin-welcome rounded-3xl p-7 sm:p-9">
+        <p className="eyebrow text-primary">Centre de contrôle</p>
+        <h1 className="font-display mt-3 max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
+          Votre studio, en un regard.
+        </h1>
+        <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          Suivez l'activité du catalogue, vos auditeurs et les signaux qui méritent votre attention.
+        </p>
+      </section>
       <section>
         <h2 className="text-[11px] tracking-[0.25em] text-muted-foreground uppercase">
           Vue d'ensemble
         </h2>
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {cards.map((card) => (
-            <div key={card.label} className="rounded-2xl bg-surface p-5 ring-1 ring-border">
+          {cards.map((card, index) => (
+            <div key={card.label} className={`admin-metric-card admin-metric-card-${index % 4}`}>
               <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
                 {card.label}
               </p>
@@ -103,7 +112,7 @@ function AdminOverview() {
         <h2 className="text-[11px] tracking-[0.25em] text-muted-foreground uppercase">
           Beats les plus écoutés
         </h2>
-        <div className="mt-5 overflow-x-auto rounded-2xl ring-1 ring-border">
+        <div className="admin-data-panel mt-5 overflow-x-auto">
           <table className="w-full min-w-[36rem] text-left text-sm">
             <thead className="bg-surface text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
               <tr>

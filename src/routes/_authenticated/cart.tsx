@@ -78,11 +78,16 @@ function CartPage() {
 
   return (
     <SiteLayout>
-      <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
-        <h1 className="font-display flex items-center gap-3 text-4xl font-semibold tracking-tighter">
-          <ShoppingCart className="size-8" aria-hidden="true" />
-          Mon panier
-        </h1>
+      <div className="public-account-page mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
+        <header className="public-page-heading">
+          <h1 className="font-display flex items-center gap-3 text-4xl font-semibold tracking-tighter">
+            <ShoppingCart className="size-8" aria-hidden="true" />
+            Mon panier
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Vos sélections sont conservées ici, prêtes pour votre prochaine session studio.
+          </p>
+        </header>
 
         <div className="mt-10">
           {beats.isPending ? (
@@ -108,7 +113,7 @@ function CartPage() {
             />
           ) : (
             <>
-              <ul className="divide-y divide-border rounded-2xl ring-1 ring-border">
+              <ul className="premium-list divide-y divide-border rounded-2xl ring-1 ring-border">
                 {list.map((beat) => (
                   <li key={beat.id} className="flex items-center gap-4 p-4">
                     <Cover
@@ -144,14 +149,14 @@ function CartPage() {
                 ))}
               </ul>
 
-              <div className="mt-6 flex items-center justify-between rounded-2xl bg-surface p-5 ring-1 ring-border">
+              <div className="premium-total mt-6 flex items-center justify-between rounded-2xl p-5 ring-1 ring-border">
                 <span className="text-sm text-muted-foreground">Total estimé</span>
                 <span className="font-display text-xl font-medium text-primary">
                   {formatPrice(total)}
                 </span>
               </div>
 
-              <div className="mt-8 rounded-3xl bg-surface p-6 ring-1 ring-border">
+              <div className="premium-checkout mt-8 rounded-3xl p-6 ring-1 ring-border">
                 <p className="text-sm text-muted-foreground">
                   Envoyez le contenu de votre panier au producteur pour finaliser votre commande.
                   Votre message sera prérempli, il ne vous restera qu'à appuyer sur envoyer.

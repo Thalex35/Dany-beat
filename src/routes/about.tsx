@@ -4,6 +4,7 @@ import { Mail, MessageCircle } from "lucide-react";
 import producerPhoto from "@/assets/producer-dany.jpg";
 import { SiteLayout } from "@/components/site/SiteLayout";
 import { Button } from "@/components/ui/button";
+import { useSignedUrl } from "@/lib/media";
 import { useSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/about")({
@@ -40,6 +41,7 @@ function AboutPage() {
   const { data: settings } = useSettings();
   const whatsapp = settings?.whatsapp_number?.replace(/\D/g, "");
   const bio = settings?.producer_bio?.trim() ? settings.producer_bio : DEFAULT_BIO;
+  const photo = useSignedUrl("site-assets", settings?.producer_photo_path);
 
   return (
     <SiteLayout>
@@ -47,7 +49,7 @@ function AboutPage() {
         <div className="grid gap-12 lg:grid-cols-[minmax(0,420px)_1fr] lg:gap-16">
           <div>
             <img
-              src={producerPhoto}
+              src={photo.data ?? producerPhoto}
               alt={`Portrait de ${settings?.producer_name ?? "Dany"} en studio`}
               width={1024}
               height={1280}

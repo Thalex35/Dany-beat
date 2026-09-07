@@ -118,6 +118,7 @@ export type Database = {
           content: string;
           created_at: string;
           id: string;
+          parent_id: string | null;
           updated_at: string;
           user_id: string;
         };
@@ -126,6 +127,7 @@ export type Database = {
           content: string;
           created_at?: string;
           id?: string;
+          parent_id?: string | null;
           updated_at?: string;
           user_id: string;
         };
@@ -134,6 +136,7 @@ export type Database = {
           content?: string;
           created_at?: string;
           id?: string;
+          parent_id?: string | null;
           updated_at?: string;
           user_id?: string;
         };
@@ -235,10 +238,14 @@ export type Database = {
       site_settings: {
         Row: {
           contact_email: string;
+          hero_description: string;
+          hero_eyebrow: string;
+          hero_title: string;
           id: boolean;
           instagram_url: string | null;
           producer_bio: string;
           producer_name: string;
+          producer_photo_path: string | null;
           tiktok_url: string | null;
           updated_at: string;
           whatsapp_number: string;
@@ -246,10 +253,14 @@ export type Database = {
         };
         Insert: {
           contact_email?: string;
+          hero_description?: string;
+          hero_eyebrow?: string;
+          hero_title?: string;
           id?: boolean;
           instagram_url?: string | null;
           producer_bio?: string;
           producer_name?: string;
+          producer_photo_path?: string | null;
           tiktok_url?: string | null;
           updated_at?: string;
           whatsapp_number?: string;
@@ -257,10 +268,14 @@ export type Database = {
         };
         Update: {
           contact_email?: string;
+          hero_description?: string;
+          hero_eyebrow?: string;
+          hero_title?: string;
           id?: boolean;
           instagram_url?: string | null;
           producer_bio?: string;
           producer_name?: string;
+          producer_photo_path?: string | null;
           tiktok_url?: string | null;
           updated_at?: string;
           whatsapp_number?: string;

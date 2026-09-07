@@ -46,18 +46,17 @@ function AdminCart() {
 
   return (
     <div>
-      <div className="mb-6 flex items-end justify-between gap-4">
+      <div className="admin-page-heading mb-6">
         <div>
-          <h2 className="text-[11px] tracking-[0.25em] text-muted-foreground uppercase">
-            Paniers des clients
-          </h2>
+          <p className="eyebrow text-primary">Opportunités</p>
+          <h1 className="font-display mt-2 text-4xl font-semibold tracking-tight">Paniers</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Contactez directement les personnes qui ont ajouté des beats à leur panier.
           </p>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl ring-1 ring-border">
+      <div className="admin-data-panel overflow-x-auto">
         <table className="w-full min-w-[42rem] text-left text-sm">
           <thead className="bg-surface text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
             <tr>

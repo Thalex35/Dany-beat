@@ -124,8 +124,8 @@ function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[16rem_1fr]">
-      <aside className="border-b border-border bg-surface lg:sticky lg:top-0 lg:h-screen lg:border-r lg:border-b-0">
+    <div className="admin-shell min-h-screen bg-background md:grid md:grid-cols-[16rem_1fr]">
+      <aside className="border-b border-border bg-surface md:sticky md:top-0 md:h-screen md:border-r md:border-b-0">
         <div className="flex h-full flex-col px-5 py-6">
           <p className="font-display text-lg font-semibold tracking-tighter uppercase">
             {settings?.producer_name ?? "Dany Beats"}
@@ -134,10 +134,7 @@ function AdminLayout() {
             Administration
           </p>
 
-          <nav
-            aria-label="Navigation administration"
-            className="mt-8 flex flex-wrap gap-1 lg:flex-col"
-          >
+          <nav aria-label="Navigation administration" className="mt-8 flex flex-col gap-1">
             {tabs.map((tab) => (
               <Link
                 key={tab.to}
@@ -152,7 +149,7 @@ function AdminLayout() {
             ))}
           </nav>
 
-          <div className="mt-8 flex flex-wrap gap-1 border-t border-border pt-4 lg:mt-auto lg:flex-col">
+          <div className="mt-8 flex flex-col gap-1 border-t border-border pt-4 md:mt-auto">
             <Link
               to="/"
               className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-background hover:text-foreground"
