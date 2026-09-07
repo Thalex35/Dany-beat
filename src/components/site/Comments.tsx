@@ -69,6 +69,8 @@ export function Comments({ beatId }: { beatId: string }) {
       setReplyTo(null);
       queryClient.invalidateQueries({ queryKey: ["comments", beatId] });
       queryClient.invalidateQueries({ queryKey: ["beat-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-beat-stats"] });
       toast.success("Commentaire publié");
     },
     onError: (error) =>
@@ -85,6 +87,8 @@ export function Comments({ beatId }: { beatId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comments", beatId] });
       queryClient.invalidateQueries({ queryKey: ["beat-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-beat-stats"] });
       toast.success("Commentaire supprimé");
     },
     onError: () => toast.error("Ce commentaire n'a pas pu être supprimé."),

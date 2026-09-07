@@ -516,6 +516,9 @@
   }
 
   .public-beat-art {
+    width: 100%;
+    max-width: 20rem;
+    margin-inline: auto;
     box-shadow: 0 18px 42px color-mix(in oklab, black 20%, transparent);
     transition:
       transform 300ms ease,
@@ -528,8 +531,17 @@
   }
 
   .public-beat-actions {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    row-gap: 0.75rem;
     border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
     padding-top: 0.85rem;
+  }
+
+  .public-beat-actions > div {
+    min-width: 0;
+    flex: 1 1 7rem;
   }
 
   .premium-list,
@@ -587,6 +599,22 @@
   }
 
   @media (max-width: 640px) {
+    .public-catalogue {
+      padding-inline: 1rem;
+    }
+
+    .public-filter-bar {
+      padding: 0.5rem;
+    }
+
+    .public-beat-art {
+      max-width: 24rem;
+    }
+
+    .public-beat-actions {
+      column-gap: 0.75rem;
+    }
+
     .admin-page-heading {
       flex-direction: column;
     }

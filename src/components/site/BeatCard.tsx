@@ -16,8 +16,8 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
   const isPlaying = isCurrent && playing;
 
   return (
-    <article className="group flex flex-col gap-4">
-      <div className="public-beat-art relative aspect-square w-full overflow-hidden rounded-2xl ring-1 ring-border">
+    <article className="group flex min-w-0 flex-col gap-4 overflow-hidden">
+      <div className="public-beat-art relative aspect-video w-full overflow-hidden rounded-2xl ring-1 ring-border">
         <Link
           to="/beats/$slug"
           params={{ slug: beat.slug }}
@@ -42,7 +42,7 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
         ) : null}
       </div>
 
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-base font-medium">
             <Link to="/beats/$slug" params={{ slug: beat.slug }} className="hover:text-primary">
@@ -53,7 +53,9 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
             {[beat.genre, beat.mood].filter(Boolean).join(" • ") || "Instrumentale"}
           </p>
         </div>
-        <span className="font-display font-medium text-primary">{formatPrice(beat.price)}</span>
+        <span className="shrink-0 font-display text-sm font-medium text-primary">
+          {formatPrice(beat.price)}
+        </span>
       </div>
 
       <div className="public-beat-actions flex items-center gap-4">

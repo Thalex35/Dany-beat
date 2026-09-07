@@ -77,6 +77,8 @@ export function useToggleCart() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["cart-ids", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["cart-beats", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-cart"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-overview"] });
     },
   });
 }
