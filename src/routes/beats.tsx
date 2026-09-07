@@ -155,7 +155,7 @@ function BeatsPage() {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex flex-col gap-4">
-                  <Skeleton className="aspect-square w-full" />
+                  <Skeleton className="aspect-video w-full" />
                   <Skeleton className="h-4 w-2/3" />
                   <Skeleton className="h-3 w-1/3" />
                 </div>

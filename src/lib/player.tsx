@@ -109,6 +109,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
       audio.src = url;
+      audio.load();
       try {
         await audio.play();
         setPlaying(true);

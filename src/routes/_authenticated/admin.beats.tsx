@@ -88,7 +88,11 @@ function toForm(beat: Beat): FormState {
 async function uploadTo(bucket: string, file: File, slug: string) {
   const ext = fileExtension(file.name) || (bucket === "covers" ? "jpg" : "mp3");
   const path = `${slug || "beat"}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
+  const { error } = await supabase.storage.from(bucket).upload(path, file, {
+    upsert: false,
+    contentType: file.type || undefined,
+    cacheControl: "3600",
+  });
   if (error) throw error;
   return path;
 }
