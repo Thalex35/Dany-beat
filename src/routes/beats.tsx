@@ -152,7 +152,7 @@ function BeatsPage() {
 
         <div className="mt-10">
           {beats.isPending ? (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex flex-col gap-4">
                   <Skeleton className="aspect-square w-full" />
@@ -173,7 +173,7 @@ function BeatsPage() {
               description="Essayez d'effacer la recherche ou de choisir un autre genre."
             />
           ) : (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {all.map((beat) => {
                 const s = stats.data?.[beat.id];
                 return s ? (
