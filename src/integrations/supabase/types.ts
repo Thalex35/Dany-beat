@@ -363,7 +363,7 @@ export type Database = {
         }[];
       };
       beat_public_stats: {
-        Args: never;
+        Args: { _beat_ids?: string[] };
         Returns: {
           beat_id: string;
           comments: number;

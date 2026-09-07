@@ -33,12 +33,22 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  const beats = useQuery(publishedBeatsQuery);
-  const stats = useQuery(beatStatsQuery);
+  const beats = useQuery(
+    publishedBeatsQuery({
+      page: 0,
+      pageSize: 24,
+      search: "",
+      genre: "all",
+      mood: "all",
+      sort: "newest",
+    }),
+  );
+  const allBeats = beats.data?.beats ?? [];
+  const stats = useQuery(beatStatsQuery(allBeats.map((beat) => beat.id)));
   const { data: settings } = useSettings();
 
-  const featured = (beats.data ?? []).filter((b) => b.featured).slice(0, 6);
-  const list = featured.length ? featured : (beats.data ?? []).slice(0, 6);
+  const featured = allBeats.filter((b) => b.featured).slice(0, 6);
+  const list = featured.length ? featured : allBeats.slice(0, 6);
   const bioIntro = settings?.producer_bio?.split("\n").filter(Boolean)[0];
 
   return (

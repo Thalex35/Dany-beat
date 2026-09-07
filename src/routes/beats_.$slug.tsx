@@ -62,7 +62,7 @@ function BeatDetailPage() {
       return (data as unknown as Beat | null) ?? null;
     },
   });
-  const stats = useQuery(beatStatsQuery);
+  const stats = useQuery(beatStatsQuery(beatQuery.data?.id ? [beatQuery.data.id] : []));
   const beat = beatQuery.data ?? null;
 
   useEffect(() => {

@@ -31,6 +31,16 @@ export type BeatStats = {
   views: number;
 };
 
+export type PublishedBeatsPage = {
+  beats: Beat[];
+  total: number;
+};
+
+export type BeatFilterOptions = {
+  genre: string | null;
+  mood: string | null;
+};
+
 export const BEAT_COLUMNS =
   "id, title, slug, description, genre, mood, bpm, song_key, price, licenses, tags, cover_path, preview_path, master_path, status, featured, created_at, published_at";
 
@@ -44,30 +54,71 @@ export function slugify(value: string) {
     .slice(0, 60);
 }
 
-export const publishedBeatsQuery = {
-  queryKey: ["beats", "published"],
-  queryFn: async (): Promise<Beat[]> => {
+export const publishedBeatsQuery = (params: {
+  page: number;
+  pageSize: number;
+  search: string;
+  genre: string;
+  mood: string;
+  sort: "newest" | "oldest" | "price-asc" | "price-desc" | "popular";
+}) => ({
+  queryKey: ["beats", "published", params],
+  queryFn: async (): Promise<PublishedBeatsPage> => {
+    const from = params.page * params.pageSize;
+    const to = from + params.pageSize - 1;
+    let query = supabase
+      .from("beats")
+      .select(BEAT_COLUMNS, { count: "exact" })
+      .eq("status", "published");
+
+    if (params.search.trim()) {
+      const search = params.search.trim().replace(/[%,()]/g, " ");
+      query = query.or(`title.ilike.%${search}%,genre.ilike.%${search}%,mood.ilike.%${search}%`);
+    }
+    if (params.genre !== "all") query = query.eq("genre", params.genre);
+    if (params.mood !== "all") query = query.eq("mood", params.mood);
+
+    if (params.sort === "price-asc") query = query.order("price", { ascending: true });
+    else if (params.sort === "price-desc") query = query.order("price", { ascending: false });
+    else {
+      query = query.order("published_at", {
+        ascending: params.sort === "oldest",
+        nullsFirst: false,
+      });
+    }
+
+    const { data, count, error } = await query.range(from, to);
+    if (error) throw error;
+    return { beats: (data ?? []) as unknown as Beat[], total: count ?? 0 };
+  },
+});
+
+export const beatFilterOptionsQuery = {
+  queryKey: ["beat-filter-options"],
+  staleTime: 300_000,
+  queryFn: async (): Promise<BeatFilterOptions[]> => {
     const { data, error } = await supabase
       .from("beats")
-      .select(BEAT_COLUMNS)
-      .eq("status", "published")
-      .order("published_at", { ascending: false, nullsFirst: false });
+      .select("genre, mood")
+      .eq("status", "published");
     if (error) throw error;
-    return (data ?? []) as unknown as Beat[];
+    return (data ?? []) as BeatFilterOptions[];
   },
 };
 
-export const beatStatsQuery = {
-  queryKey: ["beat-stats"],
+export const beatStatsQuery = (beatIds?: string[]) => ({
+  queryKey: ["beat-stats", beatIds ?? "all"],
   staleTime: 30_000,
   queryFn: async (): Promise<Record<string, BeatStats>> => {
-    const { data, error } = await supabase.rpc("beat_public_stats");
+    const { data, error } = await supabase.rpc("beat_public_stats", {
+      _beat_ids: beatIds === undefined ? null : beatIds,
+    });
     if (error) throw error;
     const map: Record<string, BeatStats> = {};
     for (const row of (data ?? []) as BeatStats[]) map[row.beat_id] = row;
     return map;
   },
-};
+});
 
 export function formatPrice(value: number | null | undefined) {
   if (value == null) return "—";

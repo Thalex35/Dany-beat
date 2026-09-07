@@ -85,7 +85,7 @@ function ProfilePage() {
       return (data ?? []) as unknown as Beat[];
     },
   });
-  const stats = useQuery(beatStatsQuery);
+  const stats = useQuery(beatStatsQuery(liked.data?.map((beat) => beat.id) ?? []));
 
   return (
     <SiteLayout>

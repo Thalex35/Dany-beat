@@ -5,9 +5,10 @@ import { useMemo, useState } from "react";
 
 import { BeatCard } from "@/components/site/BeatCard";
 import { SiteLayout } from "@/components/site/SiteLayout";
+import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
-import { beatStatsQuery, publishedBeatsQuery } from "@/lib/beats";
+import { beatFilterOptionsQuery, beatStatsQuery, publishedBeatsQuery } from "@/lib/beats";
 
 export const Route = createFileRoute("/beats")({
   head: () => ({
@@ -30,56 +31,42 @@ export const Route = createFileRoute("/beats")({
   component: BeatsPage,
 });
 
-type Sort = "newest" | "oldest" | "price-asc" | "price-desc" | "popular";
+type Sort = "newest" | "oldest" | "price-asc" | "price-desc";
 
 function BeatsPage() {
-  const beats = useQuery(publishedBeatsQuery);
-  const stats = useQuery(beatStatsQuery);
-
   const [search, setSearch] = useState("");
   const [genre, setGenre] = useState("all");
   const [mood, setMood] = useState("all");
   const [sort, setSort] = useState<Sort>("newest");
+  const [page, setPage] = useState(0);
+  const pageSize = 24;
 
-  const all = beats.data ?? [];
+  const beats = useQuery(publishedBeatsQuery({ page, pageSize, search, genre, mood, sort }));
+  const filterOptions = useQuery(beatFilterOptionsQuery);
+  const all = useMemo(() => beats.data?.beats ?? [], [beats.data?.beats]);
+  const stats = useQuery(beatStatsQuery(all.map((beat) => beat.id)));
+
   const genres = useMemo(
-    () => Array.from(new Set(all.map((b) => b.genre).filter(Boolean) as string[])).sort(),
-    [all],
+    () =>
+      Array.from(
+        new Set(
+          (filterOptions.data ?? []).map((option) => option.genre).filter(Boolean) as string[],
+        ),
+      ).sort(),
+    [filterOptions.data],
   );
   const moods = useMemo(
-    () => Array.from(new Set(all.map((b) => b.mood).filter(Boolean) as string[])).sort(),
-    [all],
+    () =>
+      Array.from(
+        new Set(
+          (filterOptions.data ?? []).map((option) => option.mood).filter(Boolean) as string[],
+        ),
+      ).sort(),
+    [filterOptions.data],
   );
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const result = all.filter((b) => {
-      if (genre !== "all" && b.genre !== genre) return false;
-      if (mood !== "all" && b.mood !== mood) return false;
-      if (!q) return true;
-      return (
-        b.title.toLowerCase().includes(q) ||
-        (b.genre ?? "").toLowerCase().includes(q) ||
-        (b.mood ?? "").toLowerCase().includes(q) ||
-        (b.tags ?? []).some((t) => t.toLowerCase().includes(q))
-      );
-    });
-    const byDate = (v: string | null, fallback: string) => new Date(v ?? fallback).getTime();
-    return result.sort((a, b) => {
-      switch (sort) {
-        case "oldest":
-          return byDate(a.published_at, a.created_at) - byDate(b.published_at, b.created_at);
-        case "price-asc":
-          return a.price - b.price;
-        case "price-desc":
-          return b.price - a.price;
-        case "popular":
-          return (stats.data?.[b.id]?.plays ?? 0) - (stats.data?.[a.id]?.plays ?? 0);
-        default:
-          return byDate(b.published_at, b.created_at) - byDate(a.published_at, a.created_at);
-      }
-    });
-  }, [all, search, genre, mood, sort, stats.data]);
+  const total = beats.data?.total ?? 0;
+  const pageCount = Math.ceil(total / pageSize);
 
   return (
     <SiteLayout>
@@ -102,15 +89,21 @@ function BeatsPage() {
             />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher par titre, tag ou ambiance"
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(0);
+              }}
+              placeholder="Rechercher par titre, genre ou ambiance"
               aria-label="Rechercher un beat"
               className="pl-11"
             />
           </div>
           <Select
             value={genre}
-            onChange={(e) => setGenre(e.target.value)}
+            onChange={(e) => {
+              setGenre(e.target.value);
+              setPage(0);
+            }}
             aria-label="Filtrer par genre"
           >
             <option value="all">Tous les genres</option>
@@ -122,7 +115,10 @@ function BeatsPage() {
           </Select>
           <Select
             value={mood}
-            onChange={(e) => setMood(e.target.value)}
+            onChange={(e) => {
+              setMood(e.target.value);
+              setPage(0);
+            }}
             aria-label="Filtrer par ambiance"
           >
             <option value="all">Toutes les ambiances</option>
@@ -136,19 +132,19 @@ function BeatsPage() {
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            {beats.isPending
-              ? "Chargement…"
-              : `${filtered.length} beat${filtered.length === 1 ? "" : "s"}`}
+            {beats.isPending ? "Chargement…" : `${total} beat${total === 1 ? "" : "s"}`}
           </p>
           <Select
             value={sort}
-            onChange={(e) => setSort(e.target.value as Sort)}
+            onChange={(e) => {
+              setSort(e.target.value as Sort);
+              setPage(0);
+            }}
             aria-label="Trier les beats"
             className="w-auto"
           >
             <option value="newest">Plus récents</option>
             <option value="oldest">Plus anciens</option>
-            <option value="popular">Les plus écoutés</option>
             <option value="price-asc">Prix croissant</option>
             <option value="price-desc">Prix décroissant</option>
           </Select>
@@ -171,14 +167,14 @@ function BeatsPage() {
               description="Le catalogue n'a pas pu être chargé."
               onRetry={() => void beats.refetch()}
             />
-          ) : filtered.length === 0 ? (
+          ) : all.length === 0 ? (
             <EmptyState
               title="Aucun beat ne correspond à ces filtres"
               description="Essayez d'effacer la recherche ou de choisir un autre genre."
             />
           ) : (
             <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((beat) => {
+              {all.map((beat) => {
                 const s = stats.data?.[beat.id];
                 return s ? (
                   <BeatCard key={beat.id} beat={beat} stats={s} />
@@ -189,6 +185,24 @@ function BeatsPage() {
             </div>
           )}
         </div>
+
+        {pageCount > 1 ? (
+          <div className="mt-10 flex items-center justify-center gap-4">
+            <Button variant="outline" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+              Précédent
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Page {page + 1} sur {pageCount}
+            </span>
+            <Button
+              variant="outline"
+              disabled={page + 1 >= pageCount}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Suivant
+            </Button>
+          </div>
+        ) : null}
       </div>
     </SiteLayout>
   );
