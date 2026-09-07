@@ -9,7 +9,7 @@ import { _ as useRouter, c as HeadContent, d as Outlet, f as lazyRouteComponent,
 import { t as Toaster } from "../_libs/sonner.mjs";
 import { t as Route$14 } from "./auth-C5k7SSva.mjs";
 import { t as Route$15 } from "./beats_._slug-otL5CXKz.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-DY8pe3M0.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-CKLJupIE.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var styles_default = "/assets/styles-CvSmyuGX.css";
@@ -224,9 +224,14 @@ var $$splitComponentImporter$11 = () => import("./route-Di7iQBCH.mjs");
 var Route$11 = createFileRoute("/_authenticated")({
 	ssr: false,
 	beforeLoad: async () => {
-		const { data, error } = await supabase.auth.getUser();
-		if (error || !data.user) throw redirect({ to: "/auth" });
-		return { user: data.user };
+		try {
+			const { data, error } = await supabase.auth.getSession();
+			if (error || !data.session?.user) throw redirect({ to: "/auth" });
+			return { user: data.session.user };
+		} catch (error) {
+			if (error instanceof Response) throw error;
+			throw redirect({ to: "/auth" });
+		}
 	},
 	component: lazyRouteComponent($$splitComponentImporter$11, "component")
 });
