@@ -29,8 +29,10 @@ type PlayerValue = {
   progress: number;
   duration: number;
   volume: number;
-  play: (track: PlayerTrack) => void;
+  loop: boolean;
+  play: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
   toggle: (track?: PlayerTrack) => void;
+  setLoop: (value: boolean) => void;
   seek: (seconds: number) => void;
   setVolume: (value: number) => void;
   stop: () => void;
@@ -48,6 +50,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(0.9);
+  const [loop, setLoopState] = useState(false);
+  const queueRef = useRef<PlayerTrack[]>([]);
+  const currentRef = useRef<PlayerTrack | null>(null);
+  const loopRef = useRef(false);
+  const playRef = useRef<(track: PlayerTrack) => void>(() => undefined);
 
   useEffect(() => {
     const audio = new Audio();
@@ -57,6 +64,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onTime = () => setProgress(audio.currentTime);
     const onMeta = () => setDuration(audio.duration || 0);
     const onEnd = () => {
+      if (loopRef.current && currentRef.current) {
+        audio.currentTime = 0;
+        void audio.play();
+        return;
+      }
+      const currentIndex = queueRef.current.findIndex(
+        (track) => track.id === currentRef.current?.id,
+      );
+      const next = queueRef.current[currentIndex + 1];
+      if (next) {
+        playRef.current(next);
+        return;
+      }
       setPlaying(false);
       setFinished(true);
     };
@@ -79,9 +99,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const play = useCallback(
-    async (next: PlayerTrack) => {
+    async (next: PlayerTrack, queue?: PlayerTrack[]) => {
       const audio = audioRef.current;
       if (!audio) return;
+      if (queue) queueRef.current = queue;
       setError(null);
       setFinished(false);
       if (current?.id === next.id && audio.src) {
@@ -100,6 +121,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       setLoading(true);
       setCurrent(next);
+      currentRef.current = next;
       setProgress(0);
       setDuration(0);
       const url = await signedUrl("previews", next.previewPath);
@@ -142,6 +164,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [current, playing, play],
   );
 
+  playRef.current = (track) => void play(track);
+
   const seek = useCallback((seconds: number) => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -155,6 +179,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setVolumeState(value);
   }, []);
 
+  const setLoop = useCallback((value: boolean) => {
+    loopRef.current = value;
+    setLoopState(value);
+  }, []);
+
   const stop = useCallback(() => {
     const audio = audioRef.current;
     if (audio) {
@@ -164,6 +193,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setPlaying(false);
     setFinished(false);
     setCurrent(null);
+    currentRef.current = null;
+    queueRef.current = [];
   }, []);
 
   return (
@@ -177,8 +208,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         progress,
         duration,
         volume,
-        play: (t) => void play(t),
+        loop,
+        play: (t, queue) => void play(t, queue),
         toggle,
+        setLoop,
         seek,
         setVolume,
         stop,

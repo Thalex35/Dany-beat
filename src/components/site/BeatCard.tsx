@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Mail, Pause, Play, RotateCcw } from "lucide-react";
+import { Ear, Mail, Pause, Play, RotateCcw } from "lucide-react";
 
 import { CartButton } from "@/components/site/CartButton";
 import { Cover } from "@/components/site/Cover";
@@ -9,8 +9,16 @@ import { openEmail } from "@/lib/contact";
 import { formatCount, formatPrice, type Beat, type BeatStats } from "@/lib/beats";
 import { usePlayer } from "@/lib/player";
 
-export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
-  const { current, playing, finished, toggle } = usePlayer();
+export function BeatCard({
+  beat,
+  stats,
+  queue,
+}: {
+  beat: Beat;
+  stats?: BeatStats;
+  queue?: Beat[];
+}) {
+  const { current, playing, finished, toggle, play } = usePlayer();
   const { data: settings } = useSettings();
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
@@ -61,16 +69,31 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
       <div className="public-beat-actions flex items-center gap-4">
         <button
           type="button"
-          onClick={() =>
-            toggle({
+          onClick={() => {
+            const track = {
               id: beat.id,
               title: beat.title,
               slug: beat.slug,
               bpm: beat.bpm,
               coverPath: beat.cover_path,
               previewPath: beat.preview_path,
-            })
-          }
+            };
+            if (queue) {
+              play(
+                track,
+                queue.map((item) => ({
+                  id: item.id,
+                  title: item.title,
+                  slug: item.slug,
+                  bpm: item.bpm,
+                  coverPath: item.cover_path,
+                  previewPath: item.preview_path,
+                })),
+              );
+            } else {
+              toggle(track);
+            }
+          }}
           aria-label={
             finished && isCurrent
               ? `Rejouer ${beat.title}`
@@ -89,7 +112,14 @@ export function BeatCard({ beat, stats }: { beat: Beat; stats?: BeatStats }) {
           )}
         </button>
         <div className="flex items-center gap-5 text-[10px] tracking-widest text-muted-foreground uppercase">
-          <span>{formatCount(stats?.plays)} écoutes</span>
+          <span
+            className="inline-flex items-center gap-1"
+            title={`${formatCount(stats?.plays)} écoutes`}
+          >
+            <Ear className="size-3.5" aria-hidden="true" />
+            <span className="sr-only">{formatCount(stats?.plays)} écoutes</span>
+            <span aria-hidden="true">{formatCount(stats?.plays)}</span>
+          </span>
           <LikeButton beatId={beat.id} count={stats?.likes} />
         </div>
         {settings?.contact_email ? (

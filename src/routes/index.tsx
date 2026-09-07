@@ -142,9 +142,9 @@ function HomePage() {
               {list.map((beat) => {
                 const s = stats.data?.[beat.id];
                 return s ? (
-                  <BeatCard key={beat.id} beat={beat} stats={s} />
+                  <BeatCard key={beat.id} beat={beat} stats={s} queue={list} />
                 ) : (
-                  <BeatCard key={beat.id} beat={beat} />
+                  <BeatCard key={beat.id} beat={beat} queue={list} />
                 );
               })}
             </div>

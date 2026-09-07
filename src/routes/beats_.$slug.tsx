@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, MessageCircle, Pause, Play } from "lucide-react";
+import { ArrowLeft, Ear, MessageCircle, Pause, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CartButton } from "@/components/site/CartButton";
@@ -172,8 +172,13 @@ function BeatDetailPage() {
                 <LikeButton beatId={beat.id} />
               )}
               <CartButton beatId={beat.id} />
-              <span className="text-[10px] tracking-widest text-muted-foreground uppercase">
-                {formatCount(s?.plays)} écoutes
+              <span
+                className="inline-flex items-center gap-1 text-[10px] tracking-widest text-muted-foreground uppercase"
+                title={`${formatCount(s?.plays)} écoutes`}
+              >
+                <Ear className="size-3.5" aria-hidden="true" />
+                <span className="sr-only">{formatCount(s?.plays)} écoutes</span>
+                <span aria-hidden="true">{formatCount(s?.plays)}</span>
               </span>
             </div>
           </div>

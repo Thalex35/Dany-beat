@@ -130,7 +130,7 @@ function ProfilePage() {
           </Button>
         </form>
 
-        <section className="profile-favorites mt-16">
+        <section id="favorites" className="profile-favorites mt-16 scroll-mt-24">
           <h2 className="font-display text-2xl font-semibold tracking-tight">Beats favoris</h2>
           <div className="mt-8">
             {liked.isPending ? (
@@ -148,9 +148,9 @@ function ProfilePage() {
                 {(liked.data ?? []).map((beat) => {
                   const s = stats.data?.[beat.id];
                   return s ? (
-                    <BeatCard key={beat.id} beat={beat} stats={s} />
+                    <BeatCard key={beat.id} beat={beat} stats={s} queue={liked.data ?? []} />
                   ) : (
-                    <BeatCard key={beat.id} beat={beat} />
+                    <BeatCard key={beat.id} beat={beat} queue={liked.data ?? []} />
                   );
                 })}
               </div>
