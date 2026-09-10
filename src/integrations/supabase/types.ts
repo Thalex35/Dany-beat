@@ -184,18 +184,27 @@ export type Database = {
           beat_id: string;
           created_at: string;
           id: string;
+          license_id: string | null;
+          license_name: string | null;
+          license_price: number | null;
           user_id: string;
         };
         Insert: {
           beat_id: string;
           created_at?: string;
           id?: string;
+          license_id?: string | null;
+          license_name?: string | null;
+          license_price?: number | null;
           user_id: string;
         };
         Update: {
           beat_id?: string;
           created_at?: string;
           id?: string;
+          license_id?: string | null;
+          license_name?: string | null;
+          license_price?: number | null;
           user_id?: string;
         };
         Relationships: [
@@ -231,6 +240,42 @@ export type Database = {
           created_at?: string;
           display_name?: string | null;
           id?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      purchase_requests: {
+        Row: {
+          id: string;
+          user_id: string;
+          beat_id: string;
+          email: string;
+          beat_title: string;
+          price: number;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          beat_id: string;
+          email: string;
+          beat_title: string;
+          price?: number;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          beat_id?: string;
+          email?: string;
+          beat_title?: string;
+          price?: number;
+          status?: string;
+          created_at?: string;
           updated_at?: string;
         };
         Relationships: [];
@@ -345,6 +390,26 @@ export type Database = {
       };
       admin_exists: { Args: never; Returns: boolean };
       admin_overview: { Args: never; Returns: Json };
+      admin_purchase_requests: {
+        Args: never;
+        Returns: {
+          id: string;
+          user_id: string;
+          display_name: string | null;
+          email: string;
+          beat_id: string;
+          beat_title: string;
+          beat_slug: string | null;
+          price: number;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        }[];
+      };
+      admin_update_purchase_request_status: {
+        Args: { _id: string; _status: string };
+        Returns: boolean;
+      };
       admin_set_admin: {
         Args: { _make: boolean; _user_id: string };
         Returns: boolean;

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { Header } from "@/components/site/Header";
+import { BeatAssistant } from "@/components/site/BeatAssistant";
 import { PlayerBar } from "@/components/site/PlayerBar";
 import { usePlayer } from "@/lib/player";
 import { useSettings } from "@/lib/settings";
@@ -118,6 +119,7 @@ export function SiteLayout({ children }: { children: ReactNode }) {
       <main className={current ? "flex-1 pb-40" : "flex-1 pb-10"}>{children}</main>
       <Footer />
       <PlayerBar />
+      <BeatAssistant />
     </div>
   );
 }

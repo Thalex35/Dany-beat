@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Ear, MessageCircle, Pause, Play } from "lucide-react";
+import { ArrowLeft, Download, Ear, MessageCircle, Pause, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { CartButton } from "@/components/site/CartButton";
@@ -15,6 +15,7 @@ import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { BEAT_COLUMNS, beatStatsQuery, formatCount, formatPrice, type Beat } from "@/lib/beats";
 import { usePlayer } from "@/lib/player";
+import { useSignedUrl } from "@/lib/media";
 import { startPurchase } from "@/lib/purchase";
 import { useSettings } from "@/lib/settings";
 
@@ -64,6 +65,7 @@ function BeatDetailPage() {
   });
   const stats = useQuery(beatStatsQuery(beatQuery.data?.id ? [beatQuery.data.id] : []));
   const beat = beatQuery.data ?? null;
+  const previewUrl = useSignedUrl("previews", beat?.preview_path).data;
 
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
@@ -171,7 +173,20 @@ function BeatDetailPage() {
               ) : (
                 <LikeButton beatId={beat.id} />
               )}
-              <CartButton beatId={beat.id} />
+              <CartButton
+                beatId={beat.id}
+                licenseId={selected?.id}
+                licenseName={selected?.name}
+                licensePrice={selected?.price}
+              />
+              {previewUrl ? (
+                <Button asChild variant="outline" size="lg">
+                  <a href={previewUrl} download={`${beat.slug}-preview.mp3`}>
+                    <Download />
+                    Télécharger
+                  </a>
+                </Button>
+              ) : null}
               <span
                 className="inline-flex items-center gap-1 text-[10px] tracking-widest text-muted-foreground uppercase"
                 title={`${formatCount(s?.plays)} écoutes`}
