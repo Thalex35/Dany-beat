@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Ear, Mail, Pause, Play, RotateCcw } from "lucide-react";
+import { Download, Ear, Mail, Pause, Play, RotateCcw } from "lucide-react";
 
 import { CartButton } from "@/components/site/CartButton";
 import { Cover } from "@/components/site/Cover";
@@ -7,6 +7,7 @@ import { LikeButton } from "@/components/site/LikeButton";
 import { useSettings } from "@/lib/settings";
 import { openEmail } from "@/lib/contact";
 import { formatCount, formatPrice, type Beat, type BeatStats } from "@/lib/beats";
+import { useSignedUrl } from "@/lib/media";
 import { usePlayer } from "@/lib/player";
 
 export function BeatCard({
@@ -20,6 +21,7 @@ export function BeatCard({
 }) {
   const { current, playing, finished, toggle, play } = usePlayer();
   const { data: settings } = useSettings();
+  const { data: previewUrl } = useSignedUrl("previews", beat.preview_path);
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
 
@@ -122,6 +124,17 @@ export function BeatCard({
           </span>
           <LikeButton beatId={beat.id} count={stats?.likes} />
         </div>
+        {previewUrl ? (
+          <a
+            href={previewUrl}
+            download={`${beat.slug}-preview.mp3`}
+            aria-label={`Télécharger l'extrait de ${beat.title}`}
+            title="Télécharger l'extrait"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Download className="size-4" aria-hidden="true" />
+          </a>
+        ) : null}
         {settings?.contact_email ? (
           <button
             type="button"

@@ -37,11 +37,28 @@ function BeatsPage() {
   const [search, setSearch] = useState("");
   const [genre, setGenre] = useState("all");
   const [mood, setMood] = useState("all");
+  const [songKey, setSongKey] = useState("all");
+  const [bpmMin, setBpmMin] = useState("");
+  const [bpmMax, setBpmMax] = useState("");
+  const [priceMax, setPriceMax] = useState("");
   const [sort, setSort] = useState<Sort>("newest");
   const [page, setPage] = useState(0);
   const pageSize = 24;
 
-  const beats = useQuery(publishedBeatsQuery({ page, pageSize, search, genre, mood, sort }));
+  const beats = useQuery(
+    publishedBeatsQuery({
+      page,
+      pageSize,
+      search,
+      genre,
+      mood,
+      songKey,
+      bpmMin: bpmMin ? Number(bpmMin) : null,
+      bpmMax: bpmMax ? Number(bpmMax) : null,
+      priceMax: priceMax ? Number(priceMax) : null,
+      sort,
+    }),
+  );
   const filterOptions = useQuery(beatFilterOptionsQuery);
   const all = useMemo(() => beats.data?.beats ?? [], [beats.data?.beats]);
   const stats = useQuery(beatStatsQuery(all.map((beat) => beat.id)));
@@ -60,6 +77,17 @@ function BeatsPage() {
       Array.from(
         new Set(
           (filterOptions.data ?? []).map((option) => option.mood).filter(Boolean) as string[],
+        ),
+      ).sort(),
+    [filterOptions.data],
+  );
+  const keys = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (filterOptions.data ?? [])
+            .map((option) => option.song_key)
+            .filter(Boolean) as string[],
         ),
       ).sort(),
     [filterOptions.data],
@@ -113,6 +141,57 @@ function BeatsPage() {
               </option>
             ))}
           </Select>
+          <Select
+            value={songKey}
+            onChange={(e) => {
+              setSongKey(e.target.value);
+              setPage(0);
+            }}
+            aria-label="Filtrer par tonalité"
+          >
+            <option value="all">Toutes les tonalités</option>
+            {keys.map((key) => (
+              <option key={key} value={key}>
+                {key}
+              </option>
+            ))}
+          </Select>
+          <Input
+            type="number"
+            min={20}
+            max={400}
+            placeholder="BPM min"
+            aria-label="BPM minimum"
+            value={bpmMin}
+            onChange={(e) => {
+              setBpmMin(e.target.value);
+              setPage(0);
+            }}
+          />
+          <Input
+            type="number"
+            min={20}
+            max={400}
+            placeholder="BPM max"
+            aria-label="BPM maximum"
+            value={bpmMax}
+            onChange={(e) => {
+              setBpmMax(e.target.value);
+              setPage(0);
+            }}
+          />
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            placeholder="Prix maximum"
+            aria-label="Prix maximum"
+            value={priceMax}
+            onChange={(e) => {
+              setPriceMax(e.target.value);
+              setPage(0);
+            }}
+          />
           <Select
             value={mood}
             onChange={(e) => {

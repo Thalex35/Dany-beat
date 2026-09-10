@@ -32,7 +32,7 @@ export function useCartBeats() {
     queryFn: async (): Promise<Beat[]> => {
       const { data: items, error } = await supabase
         .from("cart_items")
-        .select("beat_id")
+        .select("beat_id, license_id, license_name, license_price")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -45,7 +45,17 @@ export function useCartBeats() {
       if (beatsError) throw beatsError;
       const beats = (data ?? []) as unknown as Beat[];
       // conserve l'ordre d'ajout (le plus récent en premier)
-      return ids.map((id) => beats.find((b) => b.id === id)).filter((b): b is Beat => !!b);
+      return ids
+        .map((id) => beats.find((b) => b.id === id))
+        .filter((b): b is Beat => !!b)
+        .map((beat) => {
+          const item = (items ?? []).find((candidate) => candidate.beat_id === beat.id);
+          return Object.assign(beat, {
+            cart_license_id: item?.license_id ?? null,
+            cart_license_name: item?.license_name ?? null,
+            cart_license_price: item?.license_price ?? null,
+          });
+        });
     },
   });
 }
@@ -55,7 +65,19 @@ export function useToggleCart() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ beatId, inCart }: { beatId: string; inCart: boolean }) => {
+    mutationFn: async ({
+      beatId,
+      inCart,
+      licenseId,
+      licenseName,
+      licensePrice,
+    }: {
+      beatId: string;
+      inCart: boolean;
+      licenseId?: string | null;
+      licenseName?: string | null;
+      licensePrice?: number | null;
+    }) => {
       if (!user) throw new Error("auth");
       if (inCart) {
         const { error } = await supabase
@@ -68,7 +90,13 @@ export function useToggleCart() {
       } else {
         const { error } = await supabase
           .from("cart_items")
-          .insert({ beat_id: beatId, user_id: user.id });
+          .insert({
+            beat_id: beatId,
+            user_id: user.id,
+            license_id: licenseId ?? null,
+            license_name: licenseName ?? null,
+            license_price: licensePrice ?? null,
+          });
         if (error && error.code !== "23505") throw error;
         void track("cart_add", { beatId });
       }

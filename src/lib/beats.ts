@@ -39,6 +39,7 @@ export type PublishedBeatsPage = {
 export type BeatFilterOptions = {
   genre: string | null;
   mood: string | null;
+  song_key: string | null;
 };
 
 export const BEAT_COLUMNS =
@@ -60,6 +61,10 @@ export const publishedBeatsQuery = (params: {
   search: string;
   genre: string;
   mood: string;
+  songKey: string;
+  bpmMin: number | null;
+  bpmMax: number | null;
+  priceMax: number | null;
   sort: "newest" | "oldest" | "price-asc" | "price-desc" | "popular";
 }) => ({
   queryKey: ["beats", "published", params],
@@ -73,10 +78,16 @@ export const publishedBeatsQuery = (params: {
 
     if (params.search.trim()) {
       const search = params.search.trim().replace(/[%,()]/g, " ");
-      query = query.or(`title.ilike.%${search}%,genre.ilike.%${search}%,mood.ilike.%${search}%`);
+      query = query.or(
+        `title.ilike.%${search}%,genre.ilike.%${search}%,mood.ilike.%${search}%,song_key.ilike.%${search}%,tags.cs.{${search}}`,
+      );
     }
     if (params.genre !== "all") query = query.eq("genre", params.genre);
     if (params.mood !== "all") query = query.eq("mood", params.mood);
+    if (params.songKey !== "all") query = query.eq("song_key", params.songKey);
+    if (params.bpmMin !== null) query = query.gte("bpm", params.bpmMin);
+    if (params.bpmMax !== null) query = query.lte("bpm", params.bpmMax);
+    if (params.priceMax !== null) query = query.lte("price", params.priceMax);
 
     if (params.sort === "price-asc") query = query.order("price", { ascending: true });
     else if (params.sort === "price-desc") query = query.order("price", { ascending: false });
@@ -99,7 +110,7 @@ export const beatFilterOptionsQuery = {
   queryFn: async (): Promise<BeatFilterOptions[]> => {
     const { data, error } = await supabase
       .from("beats")
-      .select("genre, mood")
+      .select("genre, mood, song_key")
       .eq("status", "published");
     if (error) throw error;
     return (data ?? []) as BeatFilterOptions[];

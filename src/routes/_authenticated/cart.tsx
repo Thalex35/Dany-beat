@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Mail, MessageCircle, ShoppingCart, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Cover } from "@/components/site/Cover";
 import { SiteLayout } from "@/components/site/SiteLayout";
@@ -9,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { formatPrice } from "@/lib/beats";
 import { useCartBeats, useToggleCart } from "@/lib/cart";
 import { openEmail, openWhatsapp } from "@/lib/contact";
+import { recordPurchaseRequests } from "@/lib/purchase-requests";
 import { useSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/_authenticated/cart")({
@@ -20,14 +22,17 @@ export const Route = createFileRoute("/_authenticated/cart")({
 
 function buildCartMessage(params: {
   buyerName: string;
-  beats: { title: string; price: number }[];
+  beats: { title: string; price: number; slug: string; licenseName: string | null }[];
   total: number;
   producerName: string;
 }) {
   const lines = [
     `Bonjour ${params.producerName}, je suis intéressé(e) par les beats suivants dans mon panier :`,
     "",
-    ...params.beats.map((b) => `• ${b.title} — ${formatPrice(b.price)}`),
+    ...params.beats.map(
+      (b) =>
+        `• ${b.title} — ${formatPrice(b.price)}${b.licenseName ? ` (${b.licenseName})` : ""}\n  Acheter ce beat : ${window.location.origin}/beats/${b.slug}`,
+    ),
     "",
     `Total estimé : ${formatPrice(params.total)}`,
     "",
@@ -44,36 +49,68 @@ function CartPage() {
   const toggle = useToggleCart();
 
   const list = beats.data ?? [];
-  const total = list.reduce((sum, b) => sum + Number(b.price ?? 0), 0);
+  const total = list.reduce((sum, b) => sum + Number(b.cart_license_price ?? b.price ?? 0), 0);
   const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
   const emailReady = !!settings?.contact_email;
   const buyerName = profile?.display_name ?? user?.email ?? "Un visiteur";
 
-  function handleEmail() {
+  async function handleEmail() {
     if (!settings?.contact_email) return;
-    openEmail({
-      to: settings.contact_email,
-      subject: `Panier de ${buyerName} — ${list.length} beat(s)`,
-      body: buildCartMessage({
-        buyerName,
-        beats: list,
-        total,
-        producerName: settings?.producer_name ?? "le producteur",
-      }),
-    });
+    try {
+      await recordPurchaseRequests({
+        userId: user!.id,
+        email: user!.email ?? settings.contact_email,
+        beats: list.map((beat) => ({
+          id: beat.id,
+          title: beat.title,
+          price: Number(beat.cart_license_price ?? beat.price ?? 0),
+        })),
+      });
+      openEmail({
+        to: settings.contact_email,
+        subject: `Panier de ${buyerName} — ${list.length} beat(s)`,
+        body: buildCartMessage({
+          buyerName,
+          beats: list.map((beat) => ({
+            title: beat.title,
+            price: Number(beat.cart_license_price ?? beat.price ?? 0),
+            slug: beat.slug,
+            licenseName: beat.cart_license_name,
+          })),
+          total,
+          producerName: settings?.producer_name ?? "le producteur",
+        }),
+      });
+    } catch {
+      toast.error("La demande n'a pas pu être enregistrée. Réessayez.");
+    }
   }
 
-  function handleWhatsapp() {
+  async function handleWhatsapp() {
     if (!settings?.whatsapp_number) return;
-    openWhatsapp({
-      phone: settings.whatsapp_number,
-      text: buildCartMessage({
-        buyerName,
+    try {
+      await recordPurchaseRequests({
+        userId: user!.id,
+        email: user!.email ?? "",
         beats: list,
-        total,
-        producerName: settings?.producer_name ?? "le producteur",
-      }),
-    });
+      });
+      openWhatsapp({
+        phone: settings.whatsapp_number,
+        text: buildCartMessage({
+          buyerName,
+          beats: list.map((beat) => ({
+            title: beat.title,
+            price: Number(beat.cart_license_price ?? beat.price ?? 0),
+            slug: beat.slug,
+            licenseName: beat.cart_license_name,
+          })),
+          total,
+          producerName: settings?.producer_name ?? "le producteur",
+        }),
+      });
+    } catch {
+      toast.error("La demande n'a pas pu être enregistrée. Réessayez.");
+    }
   }
 
   return (
@@ -132,9 +169,12 @@ function CartPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {[beat.genre, beat.mood].filter(Boolean).join(" • ") || "Instrumentale"}
                       </p>
+                      {beat.cart_license_name ? (
+                        <p className="mt-1 text-xs text-primary">{beat.cart_license_name}</p>
+                      ) : null}
                     </div>
                     <span className="font-display shrink-0 font-medium text-primary">
-                      {formatPrice(beat.price)}
+                      {formatPrice(beat.cart_license_price ?? beat.price)}
                     </span>
                     <button
                       type="button"

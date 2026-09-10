@@ -13,6 +13,9 @@ export function CartButton({
   size = "md",
 }: {
   beatId: string;
+  licenseId?: string | null;
+  licenseName?: string | null;
+  licensePrice?: number | null;
   className?: string;
   size?: "sm" | "md";
 }) {
@@ -37,7 +40,7 @@ export function CartButton({
           });
           return;
         }
-        toggle.mutate({ beatId, inCart });
+        toggle.mutate({ beatId, inCart, licenseId, licenseName, licensePrice });
       }}
       className={cn(
         "grid shrink-0 place-items-center rounded-full ring-1 transition-colors disabled:opacity-50",
