@@ -40,6 +40,10 @@ function HomePage() {
       search: "",
       genre: "all",
       mood: "all",
+      songKey: "all",
+      bpmMin: null,
+      bpmMax: null,
+      priceMax: null,
       sort: "newest",
     }),
   );
@@ -83,7 +87,7 @@ function HomePage() {
 
           <dl className="mt-16 grid max-w-2xl grid-cols-3 gap-6 border-t border-border pt-8">
             {[
-              { icon: Music4, label: "Beats en ligne", value: beats.data?.length ?? "—" },
+              { icon: Music4, label: "Beats en ligne", value: beats.data?.total ?? "—" },
               { icon: Headphones, label: "Écoutes gratuites", value: "Toujours" },
               { icon: Sparkles, label: "Licences", value: "En direct" },
             ].map((item) => (
