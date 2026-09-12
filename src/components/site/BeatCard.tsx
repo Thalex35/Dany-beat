@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Download, Ear, Mail, Pause, Play, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
 import { CartButton } from "@/components/site/CartButton";
 import { Cover } from "@/components/site/Cover";
@@ -7,7 +8,7 @@ import { LikeButton } from "@/components/site/LikeButton";
 import { useSettings } from "@/lib/settings";
 import { openEmail } from "@/lib/contact";
 import { formatCount, formatPrice, type Beat, type BeatStats } from "@/lib/beats";
-import { useSignedUrl } from "@/lib/media";
+import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
 import { usePlayer } from "@/lib/player";
 
 export function BeatCard({
@@ -125,15 +126,19 @@ export function BeatCard({
           <LikeButton beatId={beat.id} count={stats?.likes} />
         </div>
         {previewUrl ? (
-          <a
-            href={previewUrl}
-            download={`${beat.slug}-preview.mp3`}
+          <button
+            type="button"
             aria-label={`Télécharger l'extrait de ${beat.title}`}
             title="Télécharger l'extrait"
             className="text-muted-foreground transition-colors hover:text-foreground"
+            onClick={() =>
+              void downloadFile(previewUrl, downloadName(beat.slug, beat.preview_path)).catch(() =>
+                toast.error("L'extrait n'a pas pu être téléchargé."),
+              )
+            }
           >
             <Download className="size-4" aria-hidden="true" />
-          </a>
+          </button>
         ) : null}
         {settings?.contact_email ? (
           <button

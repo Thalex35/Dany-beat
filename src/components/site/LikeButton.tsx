@@ -23,7 +23,7 @@ export function LikeButton({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: liked } = useQuery({
+  const { data: liked = false } = useQuery({
     queryKey: ["like", beatId, user?.id],
     enabled: !!user,
     queryFn: async () => {
@@ -60,18 +60,19 @@ export function LikeButton({
     onMutate: async (nextLiked) => {
       await queryClient.cancelQueries({ queryKey: ["like", beatId, user?.id] });
       const previous = queryClient.getQueryData(["like", beatId, user?.id]);
-      const previousStats = queryClient.getQueryData<Record<string, { likes: number }>>([
-        "beat-stats",
-      ]);
+      const previousStats = queryClient.getQueriesData<Record<string, { likes: number }>>({
+        queryKey: ["beat-stats"],
+      });
 
       queryClient.setQueryData(["like", beatId, user?.id], nextLiked);
 
-      if (previousStats?.[beatId]) {
-        queryClient.setQueryData(["beat-stats"], {
-          ...previousStats,
+      for (const [queryKey, stats] of previousStats) {
+        if (!stats?.[beatId]) continue;
+        queryClient.setQueryData(queryKey, {
+          ...stats,
           [beatId]: {
-            ...previousStats[beatId],
-            likes: Math.max(0, previousStats[beatId].likes + (nextLiked ? 1 : -1)),
+            ...stats[beatId],
+            likes: Math.max(0, stats[beatId].likes + (nextLiked ? 1 : -1)),
           },
         });
       }
@@ -80,24 +81,26 @@ export function LikeButton({
     },
     onError: (_error, _vars, context) => {
       queryClient.setQueryData(["like", beatId, user?.id], context?.previous);
-      if (context?.previousStats) {
-        queryClient.setQueryData(["beat-stats"], context.previousStats);
+      for (const [queryKey, stats] of context?.previousStats ?? []) {
+        queryClient.setQueryData(queryKey, stats);
       }
       toast.error("Votre favori n'a pas pu être enregistré. Réessayez.");
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["like", beatId, user?.id] });
       queryClient.invalidateQueries({ queryKey: ["beat-stats"] });
       queryClient.invalidateQueries({ queryKey: ["liked-beats"] });
     },
   });
 
-  const optimisticCount = (count ?? 0) + (liked === true ? 0 : mutation.isPending && !liked ? 0 : 0);
+  const optimisticLiked = mutation.isPending ? mutation.variables : liked;
+  const optimisticCount = (count ?? 0) + (optimisticLiked === liked ? 0 : optimisticLiked ? 1 : -1);
 
   return (
     <button
       type="button"
-      aria-pressed={!!liked}
-      aria-label={liked ? "Retirer ce beat des favoris" : "Ajouter ce beat aux favoris"}
+      aria-pressed={optimisticLiked}
+      aria-label={optimisticLiked ? "Retirer ce beat des favoris" : "Ajouter ce beat aux favoris"}
       onClick={() => {
         if (!user) {
           toast("Connectez-vous pour ajouter des beats en favoris");
@@ -111,11 +114,11 @@ export function LikeButton({
       }}
       className={cn(
         "inline-flex items-center gap-1.5 text-[11px] tracking-wide text-muted-foreground transition-colors hover:text-foreground",
-        liked && "text-primary hover:text-primary",
+        optimisticLiked && "text-primary hover:text-primary",
         className,
       )}
     >
-      <Heart className={cn("size-4", liked && "fill-current")} aria-hidden="true" />
+      <Heart className={cn("size-4", optimisticLiked && "fill-current")} aria-hidden="true" />
       <span className="tabular-nums">{formatCount(optimisticCount)}</span>
     </button>
   );

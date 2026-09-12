@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Download, Ear, MessageCircle, Pause, Play } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { CartButton } from "@/components/site/CartButton";
 import { Comments } from "@/components/site/Comments";
@@ -15,7 +16,7 @@ import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { BEAT_COLUMNS, beatStatsQuery, formatCount, formatPrice, type Beat } from "@/lib/beats";
 import { usePlayer } from "@/lib/player";
-import { useSignedUrl } from "@/lib/media";
+import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
 import { startPurchase } from "@/lib/purchase";
 import { useSettings } from "@/lib/settings";
 
@@ -180,11 +181,18 @@ function BeatDetailPage() {
                 licensePrice={selected?.price}
               />
               {previewUrl ? (
-                <Button asChild variant="outline" size="lg">
-                  <a href={previewUrl} download={`${beat.slug}-preview.mp3`}>
-                    <Download />
-                    Télécharger
-                  </a>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={() =>
+                    void downloadFile(previewUrl, downloadName(beat.slug, beat.preview_path)).catch(
+                      () => toast.error("L'extrait n'a pas pu être téléchargé."),
+                    )
+                  }
+                >
+                  <Download />
+                  Télécharger
                 </Button>
               ) : null}
               <span
