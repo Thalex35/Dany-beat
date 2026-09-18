@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { LogOut, MessageCircle, ShoppingCart, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { signOut, useAuth } from "@/lib/auth";
 import { BEAT_COLUMNS, beatStatsQuery, formatPrice, type Beat } from "@/lib/beats";
 import { openWhatsapp } from "@/lib/contact";
-import { useCartBeats, useToggleCart } from "@/lib/realtime";
+import { useCartBeats, useToggleCart, useUpdateCartLicense } from "@/lib/realtime";
 import { useSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/_authenticated/profile")({
@@ -40,17 +40,49 @@ export function CartPage() {
   const { data: settings } = useSettings();
   const cart = useCartBeats();
   const toggle = useToggleCart();
+  const updateLicense = useUpdateCartLicense();
+  const [savedLicenses, setSavedLicenses] = useState<Record<string, string>>({});
   const beats = cart.data ?? [];
-  const total = beats.reduce((sum, beat) => sum + Number(beat.cart_license_price ?? beat.price ?? 0), 0);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(`dany-cart-licenses:${user?.id}`);
+      if (stored) setSavedLicenses(JSON.parse(stored) as Record<string, string>);
+    } catch {
+      setSavedLicenses({});
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) window.localStorage.setItem(`dany-cart-licenses:${user.id}`, JSON.stringify(savedLicenses));
+  }, [savedLicenses, user?.id]);
+
+  const total = beats.reduce((sum, beat) => {
+    const selectedId = savedLicenses[beat.id] ?? beat.cart_license_id;
+    const license = beat.licenses.find((item) => item.id === selectedId);
+    return sum + Number(license?.price ?? beat.cart_license_price ?? beat.price ?? 0);
+  }, 0);
+
+  function selectLicense(beat: (typeof beats)[number], licenseId: string) {
+    const license = beat.licenses.find((item) => item.id === licenseId);
+    if (!license) return;
+    setSavedLicenses((current) => ({ ...current, [beat.id]: license.id }));
+    updateLicense.mutate({ beatId: beat.id, licenseId: license.id, licenseName: license.name, licensePrice: license.price });
+  }
 
   async function checkout() {
     if (!settings?.whatsapp_number || !user || !beats.length) return;
+    const selectedBeats = beats.map((beat) => {
+      const selectedId = savedLicenses[beat.id] ?? beat.cart_license_id;
+      const license = beat.licenses.find((item) => item.id === selectedId);
+      return { beat, price: Number(license?.price ?? beat.cart_license_price ?? beat.price ?? 0), licenseName: license?.name ?? beat.cart_license_name };
+    });
     const { error } = await supabase.from("purchase_requests").insert(beats.map((beat) => ({
       user_id: user.id,
       email: user.email ?? "",
       beat_id: beat.id,
       beat_title: beat.title,
-      price: Number(beat.cart_license_price ?? beat.price ?? 0),
+      price: selectedBeats.find((item) => item.beat.id === beat.id)?.price ?? Number(beat.price ?? 0),
     })));
     if (error) {
       toast.error("La demande n'a pas pu être enregistrée. Réessayez.");
@@ -60,7 +92,7 @@ export function CartPage() {
       phone: settings.whatsapp_number,
       text: [
         `Bonjour ${settings.producer_name}, je suis intéressé(e) par les beats suivants :`,
-        ...beats.map((beat) => `- ${beat.title} - ${formatPrice(Number(beat.cart_license_price ?? beat.price ?? 0))}`),
+        ...selectedBeats.map(({ beat, price, licenseName }) => `- ${beat.title}${licenseName ? ` (${licenseName})` : ""} - ${formatPrice(price)}`),
         `Total estimé : ${formatPrice(total)}`,
         `Mon nom : ${profile?.display_name ?? user.email ?? ""}`,
       ].join("\n"),
@@ -74,20 +106,25 @@ export function CartPage() {
           <ShoppingCart className="size-8" aria-hidden="true" />
           Mon panier
         </h1>
-        <p className="mt-3 text-sm text-muted-foreground">Retrouvez vos beats sélectionnés et envoyez votre demande au producteur.</p>
+        <p className="mt-3 text-sm text-muted-foreground">{beats.length} beat{beats.length > 1 ? "s" : ""} sélectionné{beats.length > 1 ? "s" : ""}. Choisissez vos licences avant de contacter le producteur.</p>
         {cart.isPending ? (
           <div className="mt-10 space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div>
         ) : cart.isError ? (
           <div className="mt-10"><EmptyState title="Impossible de charger le panier" description="Réessayez dans un instant. Vos articles ne sont pas supprimés." action={<Button size="sm" onClick={() => void cart.refetch()}>Réessayer</Button>} /></div>
         ) : beats.length === 0 ? (
-          <div className="mt-10"><EmptyState title="Votre panier est vide" description="Ajoutez des beats depuis leur fiche pour les retrouver ici." action={<Button asChild size="sm"><Link to="/beats">Voir le catalogue</Link></Button>} /></div>
+          <div className="mt-10"><EmptyState title="Votre panier est vide" description="Ajoutez des beats depuis leur fiche pour les retrouver ici." action={<Button asChild size="sm"><Link to="/beats">Découvrir les beats</Link></Button>} /></div>
         ) : (
           <div className="mt-10">
             <ul className="divide-y divide-border rounded-2xl ring-1 ring-border">
-              {beats.map((beat) => <li key={beat.id} className="flex items-center gap-4 p-4 sm:p-5"><Cover path={beat.cover_path} alt={`Pochette de ${beat.title}`} className="size-16 shrink-0 rounded-xl" /><div className="min-w-0 flex-1"><Link to="/beats/$slug" params={{ slug: beat.slug }} className="block truncate text-sm font-medium hover:text-primary">{beat.title}</Link><p className="mt-0.5 text-xs text-muted-foreground">{[beat.genre, beat.mood].filter(Boolean).join(" • ") || "Instrumentale"}</p>{beat.cart_license_name ? <p className="mt-1 text-xs text-primary">{beat.cart_license_name}</p> : null}</div><span className="font-display shrink-0 font-medium text-primary">{formatPrice(beat.cart_license_price ?? beat.price)}</span><button type="button" aria-label={`Retirer ${beat.title} du panier`} disabled={toggle.isPending} onClick={() => toggle.mutate({ beatId: beat.id, inCart: true })} className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-surface hover:text-destructive disabled:opacity-50"><Trash2 className="size-4" aria-hidden="true" /></button></li>)}
+              {beats.map((beat) => {
+                const selectedId = savedLicenses[beat.id] ?? beat.cart_license_id ?? beat.licenses[0]?.id;
+                const selectedLicense = beat.licenses.find((license) => license.id === selectedId);
+                return <li key={beat.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5"><Cover path={beat.cover_path} alt={`Pochette de ${beat.title}`} className="size-20 shrink-0 rounded-xl" /><div className="min-w-0 flex-1"><Link to="/beats/$slug" params={{ slug: beat.slug }} className="block truncate text-sm font-medium hover:text-primary">{beat.title}</Link><p className="mt-0.5 text-xs text-muted-foreground">{[beat.genre, beat.mood].filter(Boolean).join(" • ") || "Instrumentale"} {beat.bpm ? `• ${beat.bpm} BPM` : ""}</p><label className="mt-3 block text-xs text-muted-foreground">Licence<select value={selectedId ?? ""} onChange={(event) => selectLicense(beat, event.target.value)} className="mt-1 block h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground sm:max-w-xs"><option value="" disabled>Choisir une licence</option>{beat.licenses.map((license) => <option key={license.id} value={license.id}>{license.name} - {formatPrice(license.price)}</option>)}</select></label></div><span className="font-display shrink-0 font-medium text-primary">{formatPrice(selectedLicense?.price ?? beat.cart_license_price ?? beat.price)}</span><button type="button" aria-label={`Retirer ${beat.title} du panier`} disabled={toggle.isPending} onClick={() => toggle.mutate({ beatId: beat.id, inCart: true })} className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-surface hover:text-destructive disabled:opacity-50"><Trash2 className="size-4" aria-hidden="true" /></button></li>;
+              })}
             </ul>
-            <div className="mt-6 flex items-center justify-between rounded-2xl p-5 ring-1 ring-border"><span className="text-sm text-muted-foreground">Total estimé</span><span className="font-display text-xl font-medium text-primary">{formatPrice(total)}</span></div>
+            <div className="mt-6 space-y-3 rounded-2xl p-5 ring-1 ring-border"><div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Sous-total</span><span>{formatPrice(total)}</span></div><div className="flex items-center justify-between border-t border-border pt-3"><span className="font-medium">Total à payer</span><span className="font-display text-xl font-semibold text-primary">{formatPrice(total)}</span></div></div>
             <div className="mt-8 rounded-3xl p-6 ring-1 ring-border"><p className="text-sm text-muted-foreground">Votre message sera prérempli dans WhatsApp. Il ne vous restera qu'à appuyer sur envoyer.</p><Button variant="whatsapp" size="lg" className="mt-5" disabled={!settings?.whatsapp_number} onClick={() => void checkout()}><MessageCircle />Demander l'achat par WhatsApp</Button></div>
+            <Button asChild variant="outline" className="mt-4"><Link to="/beats">Continuer les achats</Link></Button>
           </div>
         )}
       </div>

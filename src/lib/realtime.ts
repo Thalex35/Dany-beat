@@ -7,7 +7,11 @@ import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { BEAT_COLUMNS, type Beat } from "@/lib/beats";
 
-export type CartBeat = Beat & { cart_license_name: string | null; cart_license_price: number | null };
+export type CartBeat = Beat & {
+  cart_license_id: string | null;
+  cart_license_name: string | null;
+  cart_license_price: number | null;
+};
 
 function hasMissingLicenseColumns(error: { code?: string; message?: string } | null) {
   return !!error &&
@@ -27,10 +31,10 @@ export function useCartIds() {
 export function useCartBeats() {
   const { user } = useAuth();
   return useQuery({ queryKey: ["cart-beats", user?.id], enabled: !!user, queryFn: async (): Promise<CartBeat[]> => {
-    let { data: items, error } = await supabase.from("cart_items").select("beat_id, license_name, license_price").eq("user_id", user!.id).order("created_at", { ascending: false });
+    let { data: items, error } = await supabase.from("cart_items").select("beat_id, license_id, license_name, license_price").eq("user_id", user!.id).order("created_at", { ascending: false });
     if (hasMissingLicenseColumns(error)) {
       const fallback = await supabase.from("cart_items").select("beat_id").eq("user_id", user!.id).order("created_at", { ascending: false });
-      items = (fallback.data ?? []).map((item) => ({ ...item, license_name: null, license_price: null }));
+      items = (fallback.data ?? []).map((item) => ({ ...item, license_id: null, license_name: null, license_price: null }));
       error = fallback.error;
     }
     if (error) throw error;
@@ -41,9 +45,29 @@ export function useCartBeats() {
     const beats = (data ?? []) as unknown as Beat[];
     return ids.map((id) => beats.find((beat) => beat.id === id)).filter((beat): beat is Beat => !!beat).map((beat) => {
       const item = (items ?? []).find((candidate) => candidate.beat_id === beat.id);
-      return { ...beat, cart_license_name: item?.license_name ?? null, cart_license_price: item?.license_price ?? null };
+      return { ...beat, cart_license_id: item?.license_id ?? null, cart_license_name: item?.license_name ?? null, cart_license_price: item?.license_price ?? null };
     });
   } });
+}
+
+export function useUpdateCartLicense() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ beatId, licenseId, licenseName, licensePrice }: { beatId: string; licenseId: string; licenseName: string; licensePrice: number }) => {
+      if (!user) throw new Error("auth");
+      const { error } = await supabase
+        .from("cart_items")
+        .update({ license_id: licenseId, license_name: licenseName, license_price: licensePrice })
+        .eq("beat_id", beatId)
+        .eq("user_id", user.id);
+      if (error) throw error;
+    },
+    onError: () => toast.error("La licence n'a pas pu être mise à jour."),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["cart-beats", user?.id] });
+    },
+  });
 }
 
 export function useToggleCart() {
