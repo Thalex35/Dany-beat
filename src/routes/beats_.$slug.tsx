@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  Check,
+  Copy,
   Download,
   Ear,
   ExternalLink,
@@ -61,6 +63,7 @@ function BeatDetailPage() {
   const { data: settings } = useSettings();
   const { current, playing, toggle } = usePlayer();
   const [licenseIndex, setLicenseIndex] = useState(0);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const beatQuery = useQuery({
     queryKey: ["beat", slug],
@@ -138,7 +141,7 @@ function BeatDetailPage() {
   const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
 
   function shareUrl() {
-    return window.location.href;
+    return typeof window === "undefined" ? "" : window.location.href;
   }
 
   function shareOnWhatsApp() {
@@ -166,6 +169,17 @@ function BeatDetailPage() {
       toast.error("Le lien n'a pas pu être copié.");
     }
     window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+  }
+
+  async function copyBeatLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl());
+      setLinkCopied(true);
+      toast.success("Lien du beat copié.");
+      window.setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      toast.error("Le lien n'a pas pu être copié.");
+    }
   }
 
   const facts = [
@@ -299,6 +313,25 @@ function BeatDetailPage() {
                 >
                   <Instagram />
                   Instagram
+                </Button>
+              </div>
+              <div className="mt-3 flex w-full max-w-xl items-center gap-2">
+                <input
+                  type="url"
+                  readOnly
+                  value={shareUrl()}
+                  aria-label="Lien public du beat"
+                  className="h-10 min-w-0 flex-1 rounded-full border border-border bg-background px-4 text-xs text-muted-foreground outline-none"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => void copyBeatLink()}
+                  aria-label={linkCopied ? "Lien copié" : "Copier le lien du beat"}
+                  title={linkCopied ? "Lien copié" : "Copier le lien"}
+                >
+                  {linkCopied ? <Check /> : <Copy />}
                 </Button>
               </div>
             </div>
