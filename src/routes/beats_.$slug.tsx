@@ -1,6 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Ear, ExternalLink, MessageCircle, Pause, Play } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  Ear,
+  ExternalLink,
+  Facebook,
+  Instagram,
+  MessageCircle,
+  Pause,
+  Play,
+  Share2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -126,6 +137,37 @@ function BeatDetailPage() {
   const isPlaying = isCurrent && playing;
   const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
 
+  function shareUrl() {
+    return window.location.href;
+  }
+
+  function shareOnWhatsApp() {
+    const text = `Écoute le beat « ${beat.title} » sur DANY BEATS : ${shareUrl()}`;
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(text)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
+  function shareOnFacebook() {
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl())}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
+  async function shareOnInstagram() {
+    try {
+      await navigator.clipboard.writeText(shareUrl());
+      toast.success("Lien copié. Collez-le dans votre story ou message Instagram.");
+    } catch {
+      toast.error("Le lien n'a pas pu être copié.");
+    }
+    window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+  }
+
   const facts = [
     { label: "BPM", value: beat.bpm ? String(beat.bpm) : "—" },
     { label: "Tonalité", value: beat.song_key ?? "—" },
@@ -222,6 +264,44 @@ function BeatDetailPage() {
                 Voir le beat sur YouTube
               </a>
             ) : null}
+            <div className="mt-6">
+              <p className="flex items-center gap-2 text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
+                <Share2 className="size-3.5" aria-hidden="true" />
+                Partager ce beat
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="whatsapp"
+                  size="sm"
+                  onClick={shareOnWhatsApp}
+                  title="Partager sur WhatsApp"
+                >
+                  <MessageCircle />
+                  WhatsApp
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={shareOnFacebook}
+                  title="Partager sur Facebook"
+                >
+                  <Facebook />
+                  Facebook
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void shareOnInstagram()}
+                  title="Copier le lien et ouvrir Instagram"
+                >
+                  <Instagram />
+                  Instagram
+                </Button>
+              </div>
+            </div>
             <Button
               variant="whatsapp"
               size="lg"
