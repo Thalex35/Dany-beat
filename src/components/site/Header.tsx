@@ -1,10 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Heart, Menu, ShoppingCart, X } from "lucide-react";
+import { Heart, Menu, X } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { useCartIds } from "@/lib/cart";
 import { useSettings } from "@/lib/settings";
 
 const links = [
@@ -18,8 +17,6 @@ export function Header() {
   const [open, setOpen] = useState(false);
   const { user, isAdmin, profile } = useAuth();
   const { data: settings } = useSettings();
-  const { data: cartIds } = useCartIds();
-  const cartCount = cartIds?.length ?? 0;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
@@ -58,17 +55,6 @@ export function Header() {
               </Button>
               <Button asChild variant="surface" size="sm">
                 <Link to="/profile">{profile?.display_name ?? "Mon compte"}</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm" className="relative">
-                <Link to="/cart" aria-label="Voir le panier">
-                  <ShoppingCart />
-                  Panier
-                  {cartCount > 0 ? (
-                    <span className="ml-1 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
-                      {cartCount}
-                    </span>
-                  ) : null}
-                </Link>
               </Button>
             </>
           ) : (
@@ -127,19 +113,6 @@ export function Header() {
                   className="rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
                 >
                   Mon compte
-                </Link>
-                <Link
-                  to="/cart"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
-                >
-                  <ShoppingCart className="size-4" aria-hidden="true" />
-                  Panier
-                  {cartCount > 0 ? (
-                    <span className="grid size-5 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
-                      {cartCount}
-                    </span>
-                  ) : null}
                 </Link>
               </>
             ) : (

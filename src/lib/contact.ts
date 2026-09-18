@@ -13,6 +13,14 @@ export function openEmail(params: { to: string; subject: string; body: string })
   window.location.href = url;
 }
 
+export function openGmail(params: { to: string; subject: string; body: string }) {
+  const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+    params.to,
+  )}&su=${encodeURIComponent(params.subject)}&body=${encodeURIComponent(params.body)}`;
+  void track("contact_email_click");
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 /**
  * Ouvre WhatsApp (app ou web) avec un message pré-rempli dans le champ de saisie.
  */

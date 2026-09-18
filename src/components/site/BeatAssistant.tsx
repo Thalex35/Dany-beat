@@ -1,7 +1,6 @@
 import { Bot, MessageCircle, Play, Send, X } from "lucide-react";
 import { useState } from "react";
 
-import { CartButton } from "@/components/site/CartButton";
 import { Cover } from "@/components/site/Cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
@@ -9,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BEAT_COLUMNS, formatPrice, type Beat } from "@/lib/beats";
 import { usePlayer } from "@/lib/player";
 
-const suggestions = ["Trouver un beat", "Drill sombre", "Afro", "Sad", "140 BPM", "Comment acheter ?"];
+const suggestions = ["Trouver un beat", "Drill sombre", "Afro", "Sad", "140 BPM"];
 
 type ChatMessage = { id: number; role: "user" | "assistant"; text: string };
 
@@ -45,9 +44,6 @@ async function findBeats(text: string) {
 }
 
 function answerFor(text: string, beats: Beat[]) {
-  if (/comment acheter|acheter|licence|panier/i.test(text)) {
-    return "Choisis une licence sur la page du beat, ajoute-le au panier, puis contacte DANY BEATS par email ou WhatsApp. Les prix et fichiers affichés viennent du catalogue.";
-  }
   if (!beats.length) {
     return "Je n'ai pas trouvé de beat publié correspondant à cette recherche. Essaie un genre, une ambiance ou un BPM différent.";
   }
@@ -115,7 +111,6 @@ export function BeatAssistant() {
                       <p className="text-[11px] text-muted-foreground">{beat.bpm ?? "—"} BPM · {formatPrice(beat.price)}</p>
                     </div>
                     <button type="button" aria-label={`Écouter ${beat.title}`} className="grid size-8 place-items-center rounded-full bg-foreground text-background" onClick={() => toggle({ id: beat.id, title: beat.title, slug: beat.slug, bpm: beat.bpm, coverPath: beat.cover_path, previewPath: beat.preview_path })}><Play className="size-3.5" /></button>
-                    <CartButton beatId={beat.id} size="sm" />
                   </div>
                 ))}
               </div>

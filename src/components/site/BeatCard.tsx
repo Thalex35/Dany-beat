@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { Download, Ear, Mail, Pause, Play, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
-import { CartButton } from "@/components/site/CartButton";
 import { Cover } from "@/components/site/Cover";
 import { LikeButton } from "@/components/site/LikeButton";
 import { useSettings } from "@/lib/settings";
@@ -157,7 +156,6 @@ export function BeatCard({
             <Mail className="size-4" aria-hidden="true" />
           </button>
         ) : null}
-        <CartButton beatId={beat.id} className="ml-auto" />
       </div>
     </article>
   );

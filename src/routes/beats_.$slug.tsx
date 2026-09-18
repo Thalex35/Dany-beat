@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Ear, MessageCircle, Pause, Play } from "lucide-react";
+import { ArrowLeft, Download, Ear, Pause, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { CartButton } from "@/components/site/CartButton";
 import { Comments } from "@/components/site/Comments";
 import { Cover } from "@/components/site/Cover";
 import { LikeButton } from "@/components/site/LikeButton";
@@ -13,12 +12,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
 import { track } from "@/lib/analytics";
-import { useAuth } from "@/lib/auth";
 import { BEAT_COLUMNS, beatStatsQuery, formatCount, formatPrice, type Beat } from "@/lib/beats";
 import { usePlayer } from "@/lib/player";
 import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
-import { startPurchase } from "@/lib/purchase";
-import { useSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/beats_/$slug")({
   head: ({ params }) => {
@@ -46,8 +42,6 @@ export const Route = createFileRoute("/beats_/$slug")({
 
 function BeatDetailPage() {
   const { slug } = Route.useParams();
-  const { profile } = useAuth();
-  const { data: settings } = useSettings();
   const { current, playing, toggle } = usePlayer();
   const [licenseIndex, setLicenseIndex] = useState(0);
 
@@ -121,10 +115,8 @@ function BeatDetailPage() {
 
   const s = stats.data?.[beat.id];
   const licenses = Array.isArray(beat.licenses) ? beat.licenses : [];
-  const selected = licenses[licenseIndex];
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
-  const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
 
   const facts = [
     { label: "BPM", value: beat.bpm ? String(beat.bpm) : "—" },
@@ -174,12 +166,6 @@ function BeatDetailPage() {
               ) : (
                 <LikeButton beatId={beat.id} />
               )}
-              <CartButton
-                beatId={beat.id}
-                licenseId={selected?.id}
-                licenseName={selected?.name}
-                licensePrice={selected?.price}
-              />
               {previewUrl ? (
                 <Button
                   type="button"
@@ -281,33 +267,6 @@ function BeatDetailPage() {
               </fieldset>
             ) : null}
 
-            <div className="mt-10 rounded-3xl bg-surface p-6 ring-1 ring-border">
-              <p className="text-sm text-muted-foreground">
-                L'achat se fait directement avec le producteur. Envoyez votre demande et vous
-                recevrez aussitôt les détails de la licence, les stems et les moyens de paiement.
-              </p>
-              <Button
-                variant="whatsapp"
-                size="lg"
-                block
-                className="mt-5"
-                disabled={!whatsappReady}
-                onClick={() =>
-                  void startPurchase({
-                    beatId: beat.id,
-                    beatTitle: beat.title,
-                    licenseName: selected?.name ?? null,
-                    price: selected?.price ?? beat.price,
-                    producerName: settings?.producer_name ?? "Dany Beats",
-                    buyerName: profile?.display_name ?? null,
-                    whatsappNumber: settings?.whatsapp_number ?? "",
-                  })
-                }
-              >
-                <MessageCircle />
-                {whatsappReady ? "Acheter via WhatsApp" : "WhatsApp non configuré"}
-              </Button>
-            </div>
           </div>
         </div>
 
