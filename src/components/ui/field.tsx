@@ -5,11 +5,12 @@ import { cn } from "@/lib/utils";
 const base =
   "w-full rounded-xl bg-surface px-4 text-sm text-foreground ring-1 ring-border placeholder:text-muted-foreground/70 focus:ring-2 focus:ring-ring focus:outline-none disabled:opacity-50";
 
-export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  function Input({ className, ...props }, ref) {
-    return <input ref={ref} className={cn(base, "h-11", className)} {...props} />;
-  },
-);
+export const Input = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(function Input({ className, ...props }, ref) {
+  return <input ref={ref} className={cn(base, "h-11", className)} {...props} />;
+});
 
 export const Textarea = React.forwardRef<
   HTMLTextAreaElement,

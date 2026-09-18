@@ -8,7 +8,11 @@ export type AnalyticsEvent =
   | "beat_comment"
   | "whatsapp_click"
   | "user_signup"
-  | "user_login";
+  | "user_login"
+  | "cart_add"
+  | "cart_remove"
+  | "contact_email_click"
+  | "contact_whatsapp_click";
 
 const SESSION_KEY = "db_session_id";
 

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Pause, Play, Volume2, X } from "lucide-react";
+import { Ear, Pause, Play, Repeat, RotateCcw, Volume2, X } from "lucide-react";
 
 import { Cover } from "@/components/site/Cover";
 import { Spinner } from "@/components/ui/states";
@@ -7,8 +7,22 @@ import { formatTime } from "@/lib/beats";
 import { usePlayer } from "@/lib/player";
 
 export function PlayerBar() {
-  const { current, playing, loading, error, progress, duration, volume, toggle, seek, setVolume, stop } =
-    usePlayer();
+  const {
+    current,
+    playing,
+    finished,
+    loading,
+    error,
+    progress,
+    duration,
+    volume,
+    loop,
+    toggle,
+    setLoop,
+    seek,
+    setVolume,
+    stop,
+  } = usePlayer();
 
   if (!current) return null;
 
@@ -17,16 +31,17 @@ export function PlayerBar() {
       <div className="mx-auto max-w-5xl rounded-2xl bg-surface/95 p-3 shadow-2xl ring-1 ring-border backdrop-blur-xl sm:p-4">
         <div className="flex items-center gap-3 sm:gap-4">
           <Link
-            to="/beats"
+            to="/beats/$slug"
+            params={{ slug: current.slug }}
             className="shrink-0"
-            aria-label={`Open ${current.title}`}
+            aria-label={`Ouvrir ${current.title}`}
           >
             <Cover path={current.coverPath} alt="" className="size-10 rounded-lg sm:size-12" />
           </Link>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{current.title}</p>
             <p className="truncate text-[10px] text-muted-foreground">
-              {current.bpm ? `${current.bpm} BPM • ` : ""}Preview
+              {current.bpm ? `${current.bpm} BPM • ` : ""}Extrait
             </p>
           </div>
           <div className="hidden items-center gap-2 sm:flex">
@@ -44,14 +59,37 @@ export function PlayerBar() {
           </div>
           <button
             onClick={() => toggle()}
-            aria-label={playing ? "Pause preview" : "Play preview"}
+            aria-label={
+              finished
+                ? "Rejouer l'extrait"
+                : playing
+                  ? "Mettre l'extrait en pause"
+                  : "Écouter l'extrait"
+            }
             className="grid size-10 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
           >
-            {loading ? <Spinner /> : playing ? <Pause className="size-4" /> : <Play className="size-4" />}
+            {loading ? (
+              <Spinner />
+            ) : finished ? (
+              <RotateCcw className="size-4" />
+            ) : playing ? (
+              <Pause className="size-4" />
+            ) : (
+              <Play className="size-4" />
+            )}
+          </button>
+          <button
+            onClick={() => setLoop(!loop)}
+            aria-pressed={loop}
+            aria-label={loop ? "Désactiver la lecture en boucle" : "Activer la lecture en boucle"}
+            title={loop ? "Désactiver la boucle" : "Activer la boucle"}
+            className={loop ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+          >
+            <Repeat className="size-4" />
           </button>
           <button
             onClick={stop}
-            aria-label="Close player"
+            aria-label="Fermer le player"
             className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground"
           >
             <X className="size-4" />
@@ -68,7 +106,7 @@ export function PlayerBar() {
             max={duration || 0}
             step={0.1}
             value={progress}
-            aria-label="Seek"
+            aria-label="Position de lecture"
             onChange={(e) => seek(Number(e.target.value))}
             className="h-1 flex-1 accent-[var(--primary)]"
           />

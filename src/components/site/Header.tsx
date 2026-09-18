@@ -1,31 +1,25 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Heart, Menu, ShoppingCart, X } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { signOut, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import { useCartIds } from "@/lib/cart";
 import { useSettings } from "@/lib/settings";
 
 const links = [
-  { to: "/", label: "Home" },
+  { to: "/", label: "Accueil" },
   { to: "/beats", label: "Beats" },
-  { to: "/about", label: "About" },
+  { to: "/about", label: "À propos" },
+  { to: "/contact", label: "Contact" },
 ] as const;
 
 export function Header() {
   const [open, setOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, isAdmin, profile } = useAuth();
   const { data: settings } = useSettings();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
-  async function handleSignOut() {
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    await signOut();
-    navigate({ to: "/", replace: true });
-  }
+  const { data: cartIds } = useCartIds();
+  const cartCount = cartIds?.length ?? 0;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
@@ -34,7 +28,7 @@ export function Header() {
           {settings?.producer_name ?? "Dany Beats"}
         </Link>
 
-        <nav aria-label="Main" className="hidden items-center gap-8 md:flex">
+        <nav aria-label="Navigation principale" className="hidden items-center gap-8 md:flex">
           {links.map((l) => (
             <Link
               key={l.to}
@@ -49,20 +43,44 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          {user ? (
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              Sign out
+          {isAdmin ? (
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/admin">Administration</Link>
             </Button>
+          ) : null}
+          {user ? (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/profile" hash="favorites" aria-label="Voir mes favoris">
+                  <Heart />
+                  Favoris
+                </Link>
+              </Button>
+              <Button asChild variant="surface" size="sm">
+                <Link to="/profile">{profile?.display_name ?? "Mon compte"}</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm" className="relative">
+                <Link to="/cart" aria-label="Voir le panier">
+                  <ShoppingCart />
+                  Panier
+                  {cartCount > 0 ? (
+                    <span className="ml-1 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                      {cartCount}
+                    </span>
+                  ) : null}
+                </Link>
+              </Button>
+            </>
           ) : (
             <Button asChild size="sm">
-              <Link to="/auth">Sign in</Link>
+              <Link to="/auth">Connexion</Link>
             </Button>
           )}
         </div>
 
         <button
           className="grid size-9 place-items-center rounded-full ring-1 ring-border md:hidden"
-          aria-label={open ? "Close menu" : "Open menu"}
+          aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
@@ -72,7 +90,7 @@ export function Header() {
 
       {open ? (
         <div className="border-t border-border bg-background px-5 py-4 md:hidden">
-          <nav aria-label="Mobile" className="flex flex-col gap-1">
+          <nav aria-label="Navigation mobile" className="flex flex-col gap-1">
             {links.map((l) => (
               <Link
                 key={l.to}
@@ -83,23 +101,54 @@ export function Header() {
                 {l.label}
               </Link>
             ))}
-            {user ? (
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  void handleSignOut();
-                }}
-                className="rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+            {isAdmin ? (
+              <Link
+                to="/admin"
+                onClick={() => setOpen(false)}
+                className="rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
               >
-                Sign out
-              </button>
+                Administration
+              </Link>
+            ) : null}
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  hash="favorites"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+                >
+                  <Heart className="size-4" aria-hidden="true" />
+                  Favoris
+                </Link>
+                <Link
+                  to="/profile"
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+                >
+                  Mon compte
+                </Link>
+                <Link
+                  to="/cart"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+                >
+                  <ShoppingCart className="size-4" aria-hidden="true" />
+                  Panier
+                  {cartCount > 0 ? (
+                    <span className="grid size-5 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                      {cartCount}
+                    </span>
+                  ) : null}
+                </Link>
+              </>
             ) : (
               <Link
                 to="/auth"
                 onClick={() => setOpen(false)}
                 className="mt-2 rounded-full bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground"
               >
-                Sign in
+                Connexion
               </Link>
             )}
           </nav>

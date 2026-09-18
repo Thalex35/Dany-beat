@@ -7,7 +7,7 @@ export function ConfirmDialog({
   trigger,
   title,
   description,
-  confirmLabel = "Confirm",
+  confirmLabel = "Confirmer",
   onConfirm,
   loading,
 }: {
@@ -31,7 +31,7 @@ export function ConfirmDialog({
           <div className="mt-6 flex justify-end gap-2">
             <AlertDialog.Cancel asChild>
               <Button variant="outline" size="sm">
-                Cancel
+                Annuler
               </Button>
             </AlertDialog.Cancel>
             <AlertDialog.Action asChild>

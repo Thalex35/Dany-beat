@@ -5,6 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 export type SiteSettings = {
   producer_name: string;
   producer_bio: string;
+  hero_eyebrow: string;
+  hero_title: string;
+  hero_description: string;
+  producer_photo_path: string | null;
   whatsapp_number: string;
   contact_email: string;
   instagram_url: string | null;
@@ -19,7 +23,7 @@ export const settingsQuery = {
     const { data, error } = await supabase
       .from("site_settings")
       .select(
-        "producer_name, producer_bio, whatsapp_number, contact_email, instagram_url, youtube_url, tiktok_url",
+        "producer_name, producer_bio, hero_eyebrow, hero_title, hero_description, producer_photo_path, whatsapp_number, contact_email, instagram_url, youtube_url, tiktok_url",
       )
       .maybeSingle();
     if (error) throw error;

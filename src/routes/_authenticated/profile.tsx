@@ -1,20 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { BeatCard } from "@/components/site/BeatCard";
 import { SiteLayout } from "@/components/site/SiteLayout";
 import { Button } from "@/components/ui/button";
-import { Field, Textarea, Input } from "@/components/ui/field";
-import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { EmptyState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut, useAuth } from "@/lib/auth";
-import { beatStatsQuery, likedBeatsQuery } from "@/lib/beats";
+import { BEAT_COLUMNS, beatStatsQuery, type Beat } from "@/lib/beats";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
-    meta: [{ title: "My Account | Dany Beats" }],
+    meta: [
+      { title: "Mon compte | Dany Beats" },
+      {
+        name: "description",
+        content:
+          "Gérez votre profil Dany Beats et retrouvez les instrumentales que vous avez aimées.",
+      },
+      { property: "og:title", content: "Mon compte | Dany Beats" },
+      { property: "og:description", content: "Votre profil et vos beats favoris." },
+      { property: "og:type", content: "profile" },
+      { name: "twitter:card", content: "summary" },
+    ],
   }),
   component: ProfilePage,
 });
@@ -22,118 +34,123 @@ export const Route = createFileRoute("/_authenticated/profile")({
 function ProfilePage() {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
-  const liked = useQuery({ ...likedBeatsQuery(user?.id ?? ""), enabled: !!user });
-  const stats = useQuery(beatStatsQuery);
+  const navigate = useNavigate();
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
 
-  const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
-  const [bio, setBio] = useState(profile?.bio ?? "");
+  async function handleSignOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await signOut();
+    navigate({ to: "/", replace: true });
+  }
 
   useEffect(() => {
     setDisplayName(profile?.display_name ?? "");
     setBio(profile?.bio ?? "");
   }, [profile?.display_name, profile?.bio]);
 
-  const mutation = useMutation({
+  const save = useMutation({
     mutationFn: async () => {
-      if (!user) throw new Error("Not signed in");
       const { error } = await supabase
         .from("profiles")
         .update({ display_name: displayName.trim() || null, bio: bio.trim() || null })
-        .eq("id", user.id);
+        .eq("id", user!.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Profile updated");
-      void queryClient.invalidateQueries({ queryKey: ["me"] });
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      toast.success("Profil mis à jour");
     },
-    onError: () => toast.error("Could not update your profile. Please try again."),
+    onError: () => toast.error("Votre profil n'a pas pu être enregistré."),
   });
 
-  if (!user) {
-    return (
-      <SiteLayout>
-        <div className="mx-auto max-w-3xl px-5 py-20 sm:px-8">
-          <Skeleton className="h-10 w-1/3" />
-        </div>
-      </SiteLayout>
-    );
-  }
+  const liked = useQuery({
+    queryKey: ["liked-beats", user?.id],
+    enabled: !!user,
+    queryFn: async (): Promise<Beat[]> => {
+      const { data: likes, error } = await supabase
+        .from("likes")
+        .select("beat_id")
+        .eq("user_id", user!.id);
+      if (error) throw error;
+      const ids = (likes ?? []).map((l) => l.beat_id);
+      if (!ids.length) return [];
+      const { data, error: beatsError } = await supabase
+        .from("beats")
+        .select(BEAT_COLUMNS)
+        .in("id", ids)
+        .eq("status", "published");
+      if (beatsError) throw beatsError;
+      return (data ?? []) as unknown as Beat[];
+    },
+  });
+  const stats = useQuery(beatStatsQuery(liked.data?.map((beat) => beat.id) ?? []));
 
   return (
     <SiteLayout>
-      <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
-        <h1 className="font-display text-4xl font-semibold tracking-tighter">My account</h1>
-
-        <section className="mt-10 rounded-3xl bg-surface p-6 ring-1 ring-border">
-          <h2 className="font-display text-lg font-semibold">Account</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={() => void signOut()}>
-            Sign out
+      <div className="public-account-page mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
+        <div className="profile-hero flex flex-wrap items-start justify-between gap-4 rounded-3xl p-7 sm:p-9">
+          <div>
+            <h1 className="font-display text-4xl font-semibold tracking-tighter">Mon compte</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{user?.email}</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => void handleSignOut()}>
+            <LogOut />
+            Déconnexion
           </Button>
-        </section>
+        </div>
 
-        <section className="mt-6 rounded-3xl bg-surface p-6 ring-1 ring-border">
-          <h2 className="font-display text-lg font-semibold">Profile</h2>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              mutation.mutate();
-            }}
-            className="mt-4 space-y-4"
-          >
-            <Field label="Display name" htmlFor="displayName">
-              <Input
-                id="displayName"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="How should we call you?"
-              />
-            </Field>
-            <Field label="Bio" htmlFor="bio">
-              <Textarea
-                id="bio"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                rows={3}
-                placeholder="Optional — tell us a bit about yourself"
-              />
-            </Field>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Saving…" : "Save changes"}
-            </Button>
-          </form>
-        </section>
+        <form
+          className="profile-form mt-8 max-w-2xl space-y-4 rounded-3xl p-6 sm:p-8"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save.mutate();
+          }}
+        >
+          <Field label="Nom affiché" htmlFor="displayName">
+            <Input
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={60}
+            />
+          </Field>
+          <Field label="Biographie" htmlFor="bio">
+            <Textarea
+              id="bio"
+              rows={3}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              maxLength={280}
+            />
+          </Field>
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? "Enregistrement…" : "Enregistrer les modifications"}
+          </Button>
+        </form>
 
-        <section className="mt-10">
-          <h2 className="font-display text-2xl font-semibold tracking-tight">Liked beats</h2>
-          <div className="mt-6">
+        <section id="favorites" className="profile-favorites mt-16 scroll-mt-24">
+          <h2 className="font-display text-2xl font-semibold tracking-tight">Beats favoris</h2>
+          <div className="mt-8">
             {liked.isPending ? (
               <div className="grid gap-8 sm:grid-cols-2">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="flex flex-col gap-4">
-                    <Skeleton className="aspect-square w-full" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </div>
-                ))}
+                <Skeleton className="aspect-square w-full" />
+                <Skeleton className="aspect-square w-full" />
               </div>
-            ) : liked.isError ? (
-              <ErrorState
-                description="Your liked beats could not be loaded."
-                onRetry={() => void liked.refetch()}
-              />
-            ) : liked.data.length === 0 ? (
+            ) : (liked.data ?? []).length === 0 ? (
               <EmptyState
-                title="No liked beats yet"
-                description="Beats you like will show up here."
+                title="Aucun beat en favori"
+                description="Touchez le cœur sur un beat pour le retrouver ici."
               />
             ) : (
               <div className="grid gap-8 sm:grid-cols-2">
-                {liked.data.map((beat) => {
+                {(liked.data ?? []).map((beat) => {
                   const s = stats.data?.[beat.id];
                   return s ? (
-                    <BeatCard key={beat.id} beat={beat} stats={s} />
+                    <BeatCard key={beat.id} beat={beat} stats={s} queue={liked.data ?? []} />
                   ) : (
-                    <BeatCard key={beat.id} beat={beat} />
+                    <BeatCard key={beat.id} beat={beat} queue={liked.data ?? []} />
                   );
                 })}
               </div>

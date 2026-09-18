@@ -20,12 +20,14 @@ export type PurchaseProvider = {
 
 function buildWhatsappMessage(intent: PurchaseIntent) {
   const lines = [
-    `Hello ${intent.producerName}, I'm interested in purchasing the beat "${intent.beatTitle}".`,
-    intent.licenseName ? `License: ${intent.licenseName}` : null,
-    typeof intent.price === "number" && intent.price > 0 ? `Listed price: $${intent.price}` : null,
-    intent.buyerName ? `My name: ${intent.buyerName}` : null,
-    `Beat ID: ${intent.beatId}`,
-    "I found it on your website and would like to know the available licenses and pricing.",
+    `Bonjour ${intent.producerName}, je suis intéressé(e) par le beat "${intent.beatTitle}".`,
+    intent.licenseName ? `Licence : ${intent.licenseName}` : null,
+    typeof intent.price === "number" && intent.price > 0
+      ? `Prix affiché : ${intent.price} $`
+      : null,
+    intent.buyerName ? `Mon nom : ${intent.buyerName}` : null,
+    `Référence du beat : ${intent.beatId}`,
+    "Je l'ai trouvé sur votre site et j'aimerais connaître les licences disponibles et les tarifs.",
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -36,7 +38,7 @@ function buildWhatsappMessage(intent: PurchaseIntent) {
  */
 export const whatsappProvider: PurchaseProvider = {
   id: "whatsapp",
-  label: "Inquire via WhatsApp",
+  label: "Demander via WhatsApp",
   isConfigured: (intent) => !!intent.whatsappNumber?.replace(/\D/g, ""),
   start: async (intent) => {
     const phone = intent.whatsappNumber.replace(/\D/g, "");

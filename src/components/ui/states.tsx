@@ -26,16 +26,14 @@ export function EmptyState({
     <div className="panel flex flex-col items-center gap-3 px-6 py-14 text-center">
       {icon ? <div className="text-muted-foreground">{icon}</div> : null}
       <h3 className="font-display text-lg">{title}</h3>
-      {description ? (
-        <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
-      ) : null}
+      {description ? <p className="max-w-sm text-sm text-muted-foreground">{description}</p> : null}
       {action}
     </div>
   );
 }
 
 export function ErrorState({
-  title = "Something went wrong",
+  title = "Une erreur est survenue",
   description,
   onRetry,
 }: {
@@ -44,10 +42,7 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <div
-      role="alert"
-      className="panel flex flex-col items-center gap-3 px-6 py-12 text-center"
-    >
+    <div role="alert" className="panel flex flex-col items-center gap-3 px-6 py-12 text-center">
       <AlertTriangle className="size-5 text-destructive" aria-hidden="true" />
       <h3 className="font-display text-base">{title}</h3>
       {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
@@ -56,7 +51,7 @@ export function ErrorState({
           onClick={onRetry}
           className="text-xs font-medium text-primary underline underline-offset-4"
         >
-          Try again
+          Réessayer
         </button>
       ) : null}
     </div>

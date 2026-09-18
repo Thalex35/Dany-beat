@@ -13,15 +13,18 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
+import { Route as BeatsRouteImport } from './routes/beats'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
-import { Route as BeatsIndexRouteImport } from './routes/beats/index'
-import { Route as BeatsSlugRouteImport } from './routes/beats/$slug'
-import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
-import { Route as AuthenticatedAdminBeatsRouteImport } from './routes/_authenticated/admin/beats'
+import { Route as BeatsSlugRouteImport } from './routes/beats_.$slug'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminBeatsRouteImport } from './routes/_authenticated/admin.beats'
+import { Route as AuthenticatedAdminCartRouteImport } from './routes/_authenticated/admin.cart'
 import { Route as AuthenticatedAdminCommentsRouteImport } from './routes/_authenticated/admin/comments'
-import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
-import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin/users'
+import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -42,9 +45,24 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
+const BeatsRoute = BeatsRouteImport.update({
+  id: '/beats',
+  path: '/beats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCartRoute = AuthenticatedCartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
@@ -52,53 +70,56 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const BeatsIndexRoute = BeatsIndexRouteImport.update({
-  id: '/beats/',
-  path: '/beats/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BeatsSlugRoute = BeatsSlugRouteImport.update({
-  id: '/beats/$slug',
+  id: '/beats_/$slug',
   path: '/beats/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthenticatedAdminRouteRoute,
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
 const AuthenticatedAdminBeatsRoute = AuthenticatedAdminBeatsRouteImport.update({
   id: '/beats',
   path: '/beats',
-  getParentRoute: () => AuthenticatedAdminRouteRoute,
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminCartRoute = AuthenticatedAdminCartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
 const AuthenticatedAdminCommentsRoute =
   AuthenticatedAdminCommentsRouteImport.update({
     id: '/comments',
     path: '/comments',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminSettingsRoute =
   AuthenticatedAdminSettingsRouteImport.update({
     id: '/settings',
     path: '/settings',
-    getParentRoute: () => AuthenticatedAdminRouteRoute,
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
-  getParentRoute: () => AuthenticatedAdminRouteRoute,
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
-  '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/beats': typeof BeatsRoute
+  '/contact': typeof ContactRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/cart': typeof AuthenticatedCartRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/beats/$slug': typeof BeatsSlugRoute
-  '/beats/': typeof BeatsIndexRoute
   '/admin/beats': typeof AuthenticatedAdminBeatsRoute
+  '/admin/cart': typeof AuthenticatedAdminCartRoute
   '/admin/comments': typeof AuthenticatedAdminCommentsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
@@ -108,10 +129,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/beats': typeof BeatsRoute
+  '/contact': typeof ContactRoute
+  '/cart': typeof AuthenticatedCartRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/beats/$slug': typeof BeatsSlugRoute
-  '/beats': typeof BeatsIndexRoute
   '/admin/beats': typeof AuthenticatedAdminBeatsRoute
+  '/admin/cart': typeof AuthenticatedAdminCartRoute
   '/admin/comments': typeof AuthenticatedAdminCommentsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
@@ -123,11 +147,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
-  '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/beats': typeof BeatsRoute
+  '/contact': typeof ContactRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/cart': typeof AuthenticatedCartRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
-  '/beats/$slug': typeof BeatsSlugRoute
-  '/beats/': typeof BeatsIndexRoute
+  '/beats_/$slug': typeof BeatsSlugRoute
   '/_authenticated/admin/beats': typeof AuthenticatedAdminBeatsRoute
+  '/_authenticated/admin/cart': typeof AuthenticatedAdminCartRoute
   '/_authenticated/admin/comments': typeof AuthenticatedAdminCommentsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
@@ -139,11 +166,14 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/auth'
+    | '/beats'
+    | '/contact'
     | '/admin'
+    | '/cart'
     | '/profile'
     | '/beats/$slug'
-    | '/beats/'
     | '/admin/beats'
+    | '/admin/cart'
     | '/admin/comments'
     | '/admin/settings'
     | '/admin/users'
@@ -153,10 +183,13 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/auth'
+    | '/beats'
+    | '/contact'
+    | '/cart'
     | '/profile'
     | '/beats/$slug'
-    | '/beats'
     | '/admin/beats'
+    | '/admin/cart'
     | '/admin/comments'
     | '/admin/settings'
     | '/admin/users'
@@ -167,11 +200,14 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/about'
     | '/auth'
+    | '/beats'
+    | '/contact'
     | '/_authenticated/admin'
+    | '/_authenticated/cart'
     | '/_authenticated/profile'
-    | '/beats/$slug'
-    | '/beats/'
+    | '/beats_/$slug'
     | '/_authenticated/admin/beats'
+    | '/_authenticated/admin/cart'
     | '/_authenticated/admin/comments'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/users'
@@ -183,8 +219,9 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
+  BeatsRoute: typeof BeatsRoute
+  ContactRoute: typeof ContactRoute
   BeatsSlugRoute: typeof BeatsSlugRoute
-  BeatsIndexRoute: typeof BeatsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -217,11 +254,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/beats': {
+      id: '/beats'
+      path: '/beats'
+      fullPath: '/beats'
+      preLoaderRoute: typeof BeatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
       fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/cart': {
+      id: '/_authenticated/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof AuthenticatedCartRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/profile': {
@@ -231,15 +289,8 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/beats/': {
-      id: '/beats/'
-      path: '/beats'
-      fullPath: '/beats/'
-      preLoaderRoute: typeof BeatsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/beats/$slug': {
-      id: '/beats/$slug'
+    '/beats_/$slug': {
+      id: '/beats_/$slug'
       path: '/beats/$slug'
       fullPath: '/beats/$slug'
       preLoaderRoute: typeof BeatsSlugRouteImport
@@ -250,68 +301,76 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/beats': {
       id: '/_authenticated/admin/beats'
       path: '/beats'
       fullPath: '/admin/beats'
       preLoaderRoute: typeof AuthenticatedAdminBeatsRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/cart': {
+      id: '/_authenticated/admin/cart'
+      path: '/cart'
+      fullPath: '/admin/cart'
+      preLoaderRoute: typeof AuthenticatedAdminCartRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/comments': {
       id: '/_authenticated/admin/comments'
       path: '/comments'
       fullPath: '/admin/comments'
       preLoaderRoute: typeof AuthenticatedAdminCommentsRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/settings': {
       id: '/_authenticated/admin/settings'
       path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AuthenticatedAdminSettingsRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/users': {
       id: '/_authenticated/admin/users'
       path: '/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
-      parentRoute: typeof AuthenticatedAdminRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
   }
 }
 
-interface AuthenticatedAdminRouteRouteChildren {
+interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminBeatsRoute: typeof AuthenticatedAdminBeatsRoute
+  AuthenticatedAdminCartRoute: typeof AuthenticatedAdminCartRoute
   AuthenticatedAdminCommentsRoute: typeof AuthenticatedAdminCommentsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
-const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
-  {
-    AuthenticatedAdminBeatsRoute: AuthenticatedAdminBeatsRoute,
-    AuthenticatedAdminCommentsRoute: AuthenticatedAdminCommentsRoute,
-    AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
-    AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
-    AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
-  }
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminBeatsRoute: AuthenticatedAdminBeatsRoute,
+  AuthenticatedAdminCartRoute: AuthenticatedAdminCartRoute,
+  AuthenticatedAdminCommentsRoute: AuthenticatedAdminCommentsRoute,
+  AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
+  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
 
-const AuthenticatedAdminRouteRouteWithChildren =
-  AuthenticatedAdminRouteRoute._addFileChildren(
-    AuthenticatedAdminRouteRouteChildren,
-  )
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedCartRoute: typeof AuthenticatedCartRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedCartRoute: AuthenticatedCartRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
 }
 
@@ -323,8 +382,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
+  BeatsRoute: BeatsRoute,
+  ContactRoute: ContactRoute,
   BeatsSlugRoute: BeatsSlugRoute,
-  BeatsIndexRoute: BeatsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
