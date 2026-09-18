@@ -23,7 +23,7 @@ export function LikeButton({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: liked = false } = useQuery({
+  const { data: likeId = null } = useQuery({
     queryKey: ["like", beatId, user?.id],
     enabled: !!user,
     queryFn: async () => {
@@ -33,7 +33,7 @@ export function LikeButton({
         .eq("beat_id", beatId)
         .eq("user_id", user!.id)
         .maybeSingle();
-      return !!data;
+      return data?.id ?? null;
     },
   });
 
@@ -47,10 +47,11 @@ export function LikeButton({
         if (error && error.code !== "23505") throw error;
         void track("beat_like", { beatId });
       } else {
+        if (!likeId) return nextLiked;
         const { error } = await supabase
           .from("likes")
           .delete()
-          .eq("beat_id", beatId)
+          .eq("id", likeId)
           .eq("user_id", user.id);
         if (error) throw error;
         void track("beat_unlike", { beatId });
@@ -93,12 +94,14 @@ export function LikeButton({
     },
   });
 
+  const liked = !!likeId;
   const optimisticLiked = mutation.isPending ? mutation.variables : liked;
   const optimisticCount = (count ?? 0) + (optimisticLiked === liked ? 0 : optimisticLiked ? 1 : -1);
 
   return (
     <button
       type="button"
+      disabled={mutation.isPending}
       aria-pressed={optimisticLiked}
       aria-label={optimisticLiked ? "Retirer ce beat des favoris" : "Ajouter ce beat aux favoris"}
       onClick={() => {
