@@ -80,12 +80,14 @@ export function LikeButton({
 
       return { previous, previousStats };
     },
-    onError: (_error, _vars, context) => {
+    onError: (error, _vars, context) => {
       queryClient.setQueryData(["like", beatId, user?.id], context?.previous);
       for (const [queryKey, stats] of context?.previousStats ?? []) {
         queryClient.setQueryData(queryKey, stats);
       }
-      toast.error("Votre favori n'a pas pu être enregistré. Réessayez.");
+      const message = error instanceof Error ? error.message : "Erreur Supabase inconnue";
+      console.error("Like toggle failed", error);
+      toast.error(`Le favori n'a pas pu être modifié : ${message}`);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["like", beatId, user?.id] });
