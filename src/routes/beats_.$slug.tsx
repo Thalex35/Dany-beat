@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Ear, MessageCircle, Pause, Play } from "lucide-react";
+import { ArrowLeft, Download, Ear, ExternalLink, MessageCircle, Pause, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -211,6 +211,17 @@ function BeatDetailPage() {
               {beat.title}
             </h1>
             <p className="mt-3 font-display text-2xl text-primary">{formatPrice(beat.price)}</p>
+            {beat.youtube_url ? (
+              <a
+                href={beat.youtube_url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+              >
+                <ExternalLink className="size-4" aria-hidden="true" />
+                Voir le beat sur YouTube
+              </a>
+            ) : null}
             <Button
               variant="whatsapp"
               size="lg"

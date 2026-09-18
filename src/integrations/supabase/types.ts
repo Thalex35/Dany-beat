@@ -65,6 +65,7 @@ export type Database = {
           tags: string[];
           title: string;
           updated_at: string;
+          youtube_url: string | null;
         };
         Insert: {
           bpm?: number | null;
@@ -87,6 +88,7 @@ export type Database = {
           tags?: string[];
           title: string;
           updated_at?: string;
+          youtube_url?: string | null;
         };
         Update: {
           bpm?: number | null;
@@ -109,6 +111,7 @@ export type Database = {
           tags?: string[];
           title?: string;
           updated_at?: string;
+          youtube_url?: string | null;
         };
         Relationships: [];
       };

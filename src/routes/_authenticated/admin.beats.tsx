@@ -43,6 +43,7 @@ type FormState = {
   cover_path: string | null;
   preview_path: string | null;
   master_path: string | null;
+  youtube_url: string;
 };
 
 const blankForm: FormState = {
@@ -62,6 +63,7 @@ const blankForm: FormState = {
   cover_path: null,
   preview_path: null,
   master_path: null,
+  youtube_url: "",
 };
 
 function toForm(beat: Beat): FormState {
@@ -82,6 +84,7 @@ function toForm(beat: Beat): FormState {
     cover_path: beat.cover_path,
     preview_path: beat.preview_path,
     master_path: beat.master_path,
+    youtube_url: beat.youtube_url ?? "",
   };
 }
 
@@ -129,6 +132,17 @@ function AdminBeats() {
 
   const save = useMutation({
     mutationFn: async (state: FormState) => {
+      if (state.youtube_url.trim()) {
+        let youtubeUrl: URL;
+        try {
+          youtubeUrl = new URL(state.youtube_url.trim());
+        } catch {
+          throw new Error("L'URL YouTube n'est pas valide.");
+        }
+        if (!['youtube.com', 'www.youtube.com', 'youtu.be', 'www.youtu.be'].includes(youtubeUrl.hostname.toLowerCase())) {
+          throw new Error("L'URL doit provenir de YouTube.");
+        }
+      }
       const payload = {
         title: state.title.trim(),
         slug: (state.slug.trim() || slugify(state.title)) as string,
@@ -148,6 +162,7 @@ function AdminBeats() {
         cover_path: state.cover_path,
         preview_path: state.preview_path,
         master_path: state.master_path,
+        youtube_url: state.youtube_url.trim() || null,
         published_at: state.status === "published" ? new Date().toISOString() : null,
       };
       if (state.id) {
@@ -326,6 +341,19 @@ function AdminBeats() {
                 rows={4}
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </Field>
+            <Field
+              label="URL YouTube"
+              htmlFor="youtube_url"
+              hint="Lien vers la vidéo YouTube du beat, visible sur sa fiche publique."
+            >
+              <Input
+                id="youtube_url"
+                type="url"
+                value={form.youtube_url}
+                onChange={(e) => setForm({ ...form, youtube_url: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..."
               />
             </Field>
           </div>

@@ -17,6 +17,7 @@ export type Beat = {
   cover_path: string | null;
   preview_path: string | null;
   master_path: string | null;
+  youtube_url: string | null;
   status: "draft" | "published";
   featured: boolean;
   created_at: string;
@@ -43,7 +44,7 @@ export type BeatFilterOptions = {
 };
 
 export const BEAT_COLUMNS =
-  "id, title, slug, description, genre, mood, bpm, song_key, price, licenses, tags, cover_path, preview_path, master_path, status, featured, created_at, published_at";
+  "id, title, slug, description, genre, mood, bpm, song_key, price, licenses, tags, cover_path, preview_path, master_path, youtube_url, status, featured, created_at, published_at";
 
 export function slugify(value: string) {
   return value
