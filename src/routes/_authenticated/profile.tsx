@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { LogOut, MessageCircle, ShoppingCart, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -132,17 +132,8 @@ export function CartPage() {
 }
 
 function ProfilePage() {
-  const [view, setView] = useState<"profile" | "cart">(() =>
-    typeof window !== "undefined" && window.location.hash === "#cart" ? "cart" : "profile",
-  );
-
-  useEffect(() => {
-    const updateView = () => setView(window.location.hash === "#cart" ? "cart" : "profile");
-    window.addEventListener("hashchange", updateView);
-    return () => window.removeEventListener("hashchange", updateView);
-  }, []);
-
-  if (view === "cart") return <CartPage />;
+  const { hash } = useLocation();
+  if (hash === "cart" || hash === "#cart") return <CartPage />;
   return <ProfileView />;
 }
 
