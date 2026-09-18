@@ -9,6 +9,20 @@ import { openEmail } from "@/lib/contact";
 import { formatCount, formatPrice, type Beat, type BeatStats } from "@/lib/beats";
 import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
 import { usePlayer } from "@/lib/player";
+import { useAuth } from "@/lib/auth";
+import { useCartIds, useToggleCart } from "@/lib/realtime";
+import { safeAuthRedirect } from "@/lib/validation";
+import { useNavigate } from "@tanstack/react-router";
+import { ShoppingCart } from "lucide-react";
+
+export function CartButton({ beatId, licenseId, licenseName, licensePrice }: { beatId: string; licenseId?: string; licenseName?: string; licensePrice?: number }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { data: ids } = useCartIds();
+  const toggle = useToggleCart();
+  const inCart = !!ids?.includes(beatId);
+  return <button type="button" aria-label={inCart ? "Retirer ce beat du panier" : "Ajouter ce beat au panier"} aria-pressed={inCart} onClick={() => user ? toggle.mutate({ beatId, inCart, licenseId, licenseName, licensePrice }) : navigate({ to: "/auth", search: { redirect: safeAuthRedirect(window.location.pathname) } })} className={`grid size-9 place-items-center rounded-full ring-1 ${inCart ? "bg-primary text-primary-foreground ring-primary" : "ring-border hover:bg-surface"}`}><ShoppingCart className="size-4" /></button>;
+}
 
 export function BeatCard({
   beat,

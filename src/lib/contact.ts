@@ -30,3 +30,10 @@ export function openWhatsapp(params: { phone: string; text: string }) {
   void track("contact_whatsapp_click");
   window.open(url, "_blank", "noopener,noreferrer");
 }
+
+export function startPurchase(params: { beatId: string; beatTitle: string; licenseName?: string | null; price?: number | null; producerName: string; buyerName?: string | null; whatsappNumber: string }) {
+  openWhatsapp({
+    phone: params.whatsappNumber,
+    text: [`Bonjour ${params.producerName}, je suis intéressé(e) par le beat « ${params.beatTitle} ».`, params.licenseName ? `Licence : ${params.licenseName}` : null, params.price != null ? `Prix affiché : ${params.price} $` : null, params.buyerName ? `Mon nom : ${params.buyerName}` : null, `Référence du beat : ${params.beatId}`, "J'aimerais connaître les licences disponibles et les tarifs."].filter(Boolean).join("\n"),
+  });
+}
