@@ -88,7 +88,7 @@ export function BeatAssistant() {
   }
 
   return (
-    <div className="fixed right-5 bottom-5 z-50 sm:right-8 sm:bottom-8">
+    <div className="fixed right-5 bottom-24 z-50 sm:right-8 sm:bottom-8">
       {open ? (
         <section className="mb-3 flex h-[min(36rem,calc(100vh-7rem))] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl bg-background shadow-2xl ring-1 ring-border">
           <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
