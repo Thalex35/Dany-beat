@@ -84,10 +84,6 @@ export function CartPage() {
       beat_title: beat.title,
       price: selectedBeats.find((item) => item.beat.id === beat.id)?.price ?? Number(beat.price ?? 0),
     })));
-    if (error) {
-      toast.error("La demande n'a pas pu être enregistrée. Réessayez.");
-      return;
-    }
     openWhatsapp({
       phone: settings.whatsapp_number,
       text: [
@@ -97,6 +93,9 @@ export function CartPage() {
         `Mon nom : ${profile?.display_name ?? user.email ?? ""}`,
       ].join("\n"),
     });
+    if (error) {
+      toast.info("WhatsApp est ouvert. La demande sera enregistrée dès que la connexion sera disponible.");
+    }
   }
 
   return (
