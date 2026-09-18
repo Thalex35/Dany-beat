@@ -23,6 +23,11 @@ async function findBeats(text: string) {
     .replace(/[%,(){}]/g, " ")
     .replace(/\s+/g, " ");
   const bpm = parseBpm(text);
+  const terms = term
+    .replace(/\bbpm\b\s*\d{2,3}/gi, "")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 1);
   let query = supabase
     .from("beats")
     .select(BEAT_COLUMNS)
@@ -30,9 +35,9 @@ async function findBeats(text: string) {
     .limit(4);
 
   if (term && !/^trouver un beat$|^comment acheter/i.test(term)) {
-    query = query.or(
-      `title.ilike.%${term}%,genre.ilike.%${term}%,mood.ilike.%${term}%,song_key.ilike.%${term}%`,
-    );
+    query = query.or(terms
+      .map((word) => `title.ilike.%${word}%,genre.ilike.%${word}%,mood.ilike.%${word}%,song_key.ilike.%${word}%`)
+      .join(","));
   }
   if (bpm) {
     query = query.gte("bpm", bpm - 5).lte("bpm", bpm + 5);
@@ -64,7 +69,6 @@ export function BeatAssistant() {
     const text = value.trim();
     if (!text) return;
     setInput("");
-    setSearch(text);
     const id = Date.now();
     setMessages((current) => [...current, { id, role: "user", text }]);
     setIsFetching(true);
