@@ -6,6 +6,7 @@ import { ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/beats";
 import { openGmail } from "@/lib/contact";
+import { useSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/_authenticated/admin/cart")({
   component: AdminCart,
@@ -24,6 +25,7 @@ type CartRow = {
 };
 
 function AdminCart() {
+  const { data: settings } = useSettings();
   const rows = useQuery({
     queryKey: ["admin-cart"],
     queryFn: async (): Promise<CartRow[]> => {
@@ -103,7 +105,23 @@ function AdminCart() {
                           openGmail({
                             to: row.email!,
                             subject: `À propos du beat "${row.beat_title}"`,
-                            body: `🎵 DANY BEATS\n\nBonjour 👋\n\nNous avons remarqué que vous avez ajouté le beat ${row.beat_title} à votre panier.\n\n💰 Prix : ${formatPrice(row.price)}\n\nSouhaitez-vous toujours acheter ce beat ?\n\nSi oui, répondez à cet e-mail pour finaliser votre achat.\n\nMerci pour votre intérêt et votre soutien à DANY BEATS ! ❤️‍🔥`,
+                            body: [
+                              "🎵 DANY BEATS",
+                              "",
+                              "Bonjour 👋",
+                              "",
+                              `Nous avons remarqué que vous avez ajouté le beat ${row.beat_title} à votre panier.`,
+                              "",
+                              `💰 Prix : ${formatPrice(row.price)}`,
+                              "",
+                              "Souhaitez-vous toujours acheter ce beat ?",
+                              "",
+                              settings?.whatsapp_number
+                                ? `Si oui, cliquez sur le lien WhatsApp ci-dessous pour contacter DANY BEATS et finaliser votre achat.\n\n📲 WhatsApp : https://wa.me/${settings.whatsapp_number.replace(/\D/g, "")}`
+                                : "Si oui, répondez à cet e-mail pour finaliser votre achat.",
+                              "",
+                              "Merci pour votre intérêt et votre soutien à DANY BEATS ! ❤️‍🔥",
+                            ].join("\n"),
                           });
                         }}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
