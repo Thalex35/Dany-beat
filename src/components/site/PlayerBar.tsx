@@ -83,7 +83,7 @@ export function PlayerBar() {
             aria-pressed={loop}
             aria-label={loop ? "Désactiver la lecture en boucle" : "Activer la lecture en boucle"}
             title={loop ? "Désactiver la boucle" : "Activer la boucle"}
-            className={loop ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+            className={`hidden sm:block ${loop ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Repeat className="size-4" />
           </button>

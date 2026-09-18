@@ -85,7 +85,7 @@ function HomePage() {
             </Button>
           </div>
 
-          <dl className="mt-16 grid max-w-2xl grid-cols-3 gap-6 border-t border-border pt-8">
+          <dl className="mt-16 grid max-w-2xl grid-cols-1 gap-5 border-t border-border pt-8 sm:grid-cols-3 sm:gap-6">
             {[
               { icon: Music4, label: "Beats en ligne", value: beats.data?.total ?? "—" },
               { icon: Headphones, label: "Écoutes gratuites", value: "Toujours" },

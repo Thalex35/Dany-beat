@@ -208,9 +208,9 @@ function BeatDetailPage() {
               className="aspect-square w-full rounded-3xl ring-1 ring-border"
               sizes="(min-width: 1024px) 420px, 100vw"
             />
-            <div className="mt-5 flex items-center gap-4">
+            <div className="mt-5 flex flex-wrap items-center gap-3 sm:gap-4">
               <Button
-                size="lg"
+                size="md"
                 onClick={() =>
                   toggle({
                     id: beat.id,
@@ -240,7 +240,7 @@ function BeatDetailPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  size="lg"
+                  size="md"
                   onClick={() =>
                     void downloadFile(previewUrl, downloadName(beat.slug, beat.preview_path)).catch(
                       () => toast.error("L'extrait n'a pas pu être téléchargé."),
@@ -321,7 +321,7 @@ function BeatDetailPage() {
                   readOnly
                   value={shareUrl()}
                   aria-label="Lien public du beat"
-                  className="h-10 min-w-0 flex-1 rounded-full border border-border bg-background px-4 text-xs text-muted-foreground outline-none"
+                  className="h-10 min-w-0 flex-1 rounded-full border border-border bg-background px-3 text-xs text-muted-foreground outline-none sm:px-4"
                 />
                 <Button
                   type="button"
