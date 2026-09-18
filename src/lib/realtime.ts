@@ -9,6 +9,12 @@ import { BEAT_COLUMNS, type Beat } from "@/lib/beats";
 
 export type CartBeat = Beat & { cart_license_name: string | null; cart_license_price: number | null };
 
+function hasMissingLicenseColumns(error: { code?: string; message?: string } | null) {
+  return !!error &&
+    (error.code === "PGRST204" || error.code === "42703" ||
+      /license_(id|name|price)|column .* does not exist/i.test(error.message ?? ""));
+}
+
 export function useCartIds() {
   const { user } = useAuth();
   return useQuery({ queryKey: ["cart-ids", user?.id], enabled: !!user, queryFn: async () => {
@@ -22,7 +28,7 @@ export function useCartBeats() {
   const { user } = useAuth();
   return useQuery({ queryKey: ["cart-beats", user?.id], enabled: !!user, queryFn: async (): Promise<CartBeat[]> => {
     let { data: items, error } = await supabase.from("cart_items").select("beat_id, license_name, license_price").eq("user_id", user!.id).order("created_at", { ascending: false });
-    if (error?.code === "PGRST204") {
+    if (hasMissingLicenseColumns(error)) {
       const fallback = await supabase.from("cart_items").select("beat_id").eq("user_id", user!.id).order("created_at", { ascending: false });
       items = (fallback.data ?? []).map((item) => ({ ...item, license_name: null, license_price: null }));
       error = fallback.error;
@@ -51,7 +57,7 @@ export function useToggleCart() {
       void track("cart_remove", { beatId });
     } else {
       let { error } = await supabase.from("cart_items").insert({ beat_id: beatId, user_id: user.id, license_id: licenseId ?? null, license_name: licenseName ?? null, license_price: licensePrice ?? null });
-      if (error?.code === "PGRST204") {
+      if (hasMissingLicenseColumns(error)) {
         const fallback = await supabase.from("cart_items").insert({ beat_id: beatId, user_id: user.id });
         error = fallback.error;
       }

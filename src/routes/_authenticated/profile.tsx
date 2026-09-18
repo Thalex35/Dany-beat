@@ -35,15 +35,87 @@ export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
 });
 
+export function CartPage() {
+  const { user, profile } = useAuth();
+  const { data: settings } = useSettings();
+  const cart = useCartBeats();
+  const toggle = useToggleCart();
+  const beats = cart.data ?? [];
+  const total = beats.reduce((sum, beat) => sum + Number(beat.cart_license_price ?? beat.price ?? 0), 0);
+
+  async function checkout() {
+    if (!settings?.whatsapp_number || !user || !beats.length) return;
+    const { error } = await supabase.from("purchase_requests").insert(beats.map((beat) => ({
+      user_id: user.id,
+      email: user.email ?? "",
+      beat_id: beat.id,
+      beat_title: beat.title,
+      price: Number(beat.cart_license_price ?? beat.price ?? 0),
+    })));
+    if (error) {
+      toast.error("La demande n'a pas pu être enregistrée. Réessayez.");
+      return;
+    }
+    openWhatsapp({
+      phone: settings.whatsapp_number,
+      text: [
+        `Bonjour ${settings.producer_name}, je suis intéressé(e) par les beats suivants :`,
+        ...beats.map((beat) => `- ${beat.title} - ${formatPrice(Number(beat.cart_license_price ?? beat.price ?? 0))}`),
+        `Total estimé : ${formatPrice(total)}`,
+        `Mon nom : ${profile?.display_name ?? user.email ?? ""}`,
+      ].join("\n"),
+    });
+  }
+
+  return (
+    <SiteLayout>
+      <div className="mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
+        <h1 className="font-display flex items-center gap-3 text-4xl font-semibold tracking-tighter">
+          <ShoppingCart className="size-8" aria-hidden="true" />
+          Mon panier
+        </h1>
+        <p className="mt-3 text-sm text-muted-foreground">Retrouvez vos beats sélectionnés et envoyez votre demande au producteur.</p>
+        {cart.isPending ? (
+          <div className="mt-10 space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div>
+        ) : cart.isError ? (
+          <div className="mt-10"><EmptyState title="Impossible de charger le panier" description="Réessayez dans un instant. Vos articles ne sont pas supprimés." action={<Button size="sm" onClick={() => void cart.refetch()}>Réessayer</Button>} /></div>
+        ) : beats.length === 0 ? (
+          <div className="mt-10"><EmptyState title="Votre panier est vide" description="Ajoutez des beats depuis leur fiche pour les retrouver ici." action={<Button asChild size="sm"><Link to="/beats">Voir le catalogue</Link></Button>} /></div>
+        ) : (
+          <div className="mt-10">
+            <ul className="divide-y divide-border rounded-2xl ring-1 ring-border">
+              {beats.map((beat) => <li key={beat.id} className="flex items-center gap-4 p-4 sm:p-5"><Cover path={beat.cover_path} alt={`Pochette de ${beat.title}`} className="size-16 shrink-0 rounded-xl" /><div className="min-w-0 flex-1"><Link to="/beats/$slug" params={{ slug: beat.slug }} className="block truncate text-sm font-medium hover:text-primary">{beat.title}</Link><p className="mt-0.5 text-xs text-muted-foreground">{[beat.genre, beat.mood].filter(Boolean).join(" • ") || "Instrumentale"}</p>{beat.cart_license_name ? <p className="mt-1 text-xs text-primary">{beat.cart_license_name}</p> : null}</div><span className="font-display shrink-0 font-medium text-primary">{formatPrice(beat.cart_license_price ?? beat.price)}</span><button type="button" aria-label={`Retirer ${beat.title} du panier`} disabled={toggle.isPending} onClick={() => toggle.mutate({ beatId: beat.id, inCart: true })} className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-surface hover:text-destructive disabled:opacity-50"><Trash2 className="size-4" aria-hidden="true" /></button></li>)}
+            </ul>
+            <div className="mt-6 flex items-center justify-between rounded-2xl p-5 ring-1 ring-border"><span className="text-sm text-muted-foreground">Total estimé</span><span className="font-display text-xl font-medium text-primary">{formatPrice(total)}</span></div>
+            <div className="mt-8 rounded-3xl p-6 ring-1 ring-border"><p className="text-sm text-muted-foreground">Votre message sera prérempli dans WhatsApp. Il ne vous restera qu'à appuyer sur envoyer.</p><Button variant="whatsapp" size="lg" className="mt-5" disabled={!settings?.whatsapp_number} onClick={() => void checkout()}><MessageCircle />Demander l'achat par WhatsApp</Button></div>
+          </div>
+        )}
+      </div>
+    </SiteLayout>
+  );
+}
+
 function ProfilePage() {
+  const [view, setView] = useState<"profile" | "cart">(() =>
+    typeof window !== "undefined" && window.location.hash === "#cart" ? "cart" : "profile",
+  );
+
+  useEffect(() => {
+    const updateView = () => setView(window.location.hash === "#cart" ? "cart" : "profile");
+    window.addEventListener("hashchange", updateView);
+    return () => window.removeEventListener("hashchange", updateView);
+  }, []);
+
+  if (view === "cart") return <CartPage />;
+  return <ProfileView />;
+}
+
+function ProfileView() {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
-  const { data: settings } = useSettings();
-  const cart = useCartBeats();
-  const toggleCart = useToggleCart();
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -93,37 +165,6 @@ function ProfilePage() {
     },
   });
   const stats = useQuery(beatStatsQuery(liked.data?.map((beat) => beat.id) ?? []));
-  const cartBeats = cart.data ?? [];
-  const cartTotal = cartBeats.reduce(
-    (sum, beat) => sum + Number(beat.cart_license_price ?? beat.price ?? 0),
-    0,
-  );
-
-  async function checkoutCart() {
-    if (!settings?.whatsapp_number || !user || !cartBeats.length) return;
-    const { error } = await supabase.from("purchase_requests").insert(
-      cartBeats.map((beat) => ({
-        user_id: user.id,
-        email: user.email ?? "",
-        beat_id: beat.id,
-        beat_title: beat.title,
-        price: Number(beat.cart_license_price ?? beat.price ?? 0),
-      })),
-    );
-    if (error) {
-      toast.error("La demande n'a pas pu être enregistrée. Réessayez.");
-      return;
-    }
-    openWhatsapp({
-      phone: settings.whatsapp_number,
-      text: [
-        `Bonjour ${settings.producer_name}, je suis intéressé(e) par les beats suivants :`,
-        ...cartBeats.map((beat) => `- ${beat.title} - ${formatPrice(Number(beat.cart_license_price ?? beat.price ?? 0))}`),
-        `Total estimé : ${formatPrice(cartTotal)}`,
-        `Mon nom : ${profile?.display_name ?? user.email ?? ""}`,
-      ].join("\n"),
-    });
-  }
 
   return (
     <SiteLayout>
@@ -167,42 +208,6 @@ function ProfilePage() {
             {save.isPending ? "Enregistrement…" : "Enregistrer les modifications"}
           </Button>
         </form>
-
-        <section id="cart" className="mt-16 scroll-mt-24">
-          <h2 className="font-display flex items-center gap-3 text-2xl font-semibold tracking-tight">
-            <ShoppingCart className="size-6" aria-hidden="true" />
-            Mon panier
-          </h2>
-          {cartBeats.length ? (
-            <>
-              <ul className="mt-6 divide-y divide-border rounded-2xl ring-1 ring-border">
-                {cartBeats.map((beat) => (
-                  <li key={beat.id} className="flex items-center gap-4 p-4">
-                    <Cover path={beat.cover_path} alt={`Pochette de ${beat.title}`} className="size-14 shrink-0 rounded-xl" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{beat.title}</p>
-                      {beat.cart_license_name ? <p className="text-xs text-primary">{beat.cart_license_name}</p> : null}
-                    </div>
-                    <span className="font-display text-primary">{formatPrice(beat.cart_license_price ?? beat.price)}</span>
-                    <button type="button" aria-label={`Retirer ${beat.title} du panier`} onClick={() => toggleCart.mutate({ beatId: beat.id, inCart: true })} className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-surface hover:text-destructive">
-                      <Trash2 className="size-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total estimé</span>
-                <strong className="font-display text-primary">{formatPrice(cartTotal)}</strong>
-              </div>
-              <Button variant="whatsapp" size="lg" className="mt-5" disabled={!settings?.whatsapp_number} onClick={() => void checkoutCart()}>
-                <MessageCircle />
-                Demander l'achat par WhatsApp
-              </Button>
-            </>
-          ) : (
-            <p className="mt-4 text-sm text-muted-foreground">Votre panier est vide. Ajoutez un beat depuis sa fiche.</p>
-          )}
-        </section>
 
         <section id="favorites" className="profile-favorites mt-16 scroll-mt-24">
           <h2 className="font-display text-2xl font-semibold tracking-tight">Beats favoris</h2>
