@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import danyLogo from "../assets/danyLogo.png";
 import { AuthProvider } from "../lib/auth";
 import { PlayerProvider } from "../lib/player";
 import { Toaster } from "../components/ui/sonner";
@@ -111,7 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/dany-beats.svg", type: "image/svg+xml" },
+      { rel: "icon", href: danyLogo, type: "image/png" },
     ],
   }),
   shellComponent: RootShell,
