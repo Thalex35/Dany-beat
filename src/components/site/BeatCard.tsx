@@ -19,7 +19,28 @@ export function CartButton({ beatId, licenseId, licenseName, licensePrice }: { b
   const { data: ids } = useCartIds();
   const toggle = useToggleCart();
   const inCart = !!ids?.includes(beatId);
-  return <button type="button" aria-label={inCart ? "Retirer ce beat du panier" : "Ajouter ce beat au panier"} aria-pressed={inCart} onClick={() => user ? toggle.mutate({ beatId, inCart, licenseId, licenseName, licensePrice }) : navigate({ to: "/auth", search: { redirect: safeAuthRedirect(window.location.pathname) } })} className={`grid size-9 place-items-center rounded-full ring-1 ${inCart ? "bg-primary text-primary-foreground ring-primary" : "ring-border hover:bg-surface"}`}><ShoppingCart className="size-4" /></button>;
+  return (
+    <button
+      type="button"
+      aria-label={inCart ? "Retirer ce beat du panier" : "Ajouter ce beat au panier"}
+      aria-pressed={inCart}
+      onClick={() =>
+        user
+          ? toggle.mutate({ beatId, inCart, licenseId, licenseName, licensePrice })
+          : navigate({
+              to: "/auth",
+              search: { redirect: safeAuthRedirect(window.location.pathname) },
+            })
+      }
+      className={`grid size-10 shrink-0 place-items-center rounded-full p-2 transition-all hover:scale-105 ${
+        inCart
+          ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/20"
+          : "bg-surface text-muted-foreground ring-1 ring-border hover:bg-surface-2 hover:text-foreground"
+      }`}
+    >
+      <ShoppingCart className="size-4" aria-hidden="true" />
+    </button>
+  );
 }
 
 export function BeatCard({
