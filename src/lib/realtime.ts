@@ -21,7 +21,12 @@ export function useCartIds() {
 export function useCartBeats() {
   const { user } = useAuth();
   return useQuery({ queryKey: ["cart-beats", user?.id], enabled: !!user, queryFn: async (): Promise<CartBeat[]> => {
-    const { data: items, error } = await supabase.from("cart_items").select("beat_id, license_name, license_price").eq("user_id", user!.id).order("created_at", { ascending: false });
+    let { data: items, error } = await supabase.from("cart_items").select("beat_id, license_name, license_price").eq("user_id", user!.id).order("created_at", { ascending: false });
+    if (error?.code === "PGRST204") {
+      const fallback = await supabase.from("cart_items").select("beat_id").eq("user_id", user!.id).order("created_at", { ascending: false });
+      items = (fallback.data ?? []).map((item) => ({ ...item, license_name: null, license_price: null }));
+      error = fallback.error;
+    }
     if (error) throw error;
     const ids = (items ?? []).map((item) => item.beat_id);
     if (!ids.length) return [];
@@ -45,7 +50,11 @@ export function useToggleCart() {
       if (error) throw error;
       void track("cart_remove", { beatId });
     } else {
-      const { error } = await supabase.from("cart_items").insert({ beat_id: beatId, user_id: user.id, license_id: licenseId ?? null, license_name: licenseName ?? null, license_price: licensePrice ?? null });
+      let { error } = await supabase.from("cart_items").insert({ beat_id: beatId, user_id: user.id, license_id: licenseId ?? null, license_name: licenseName ?? null, license_price: licensePrice ?? null });
+      if (error?.code === "PGRST204") {
+        const fallback = await supabase.from("cart_items").insert({ beat_id: beatId, user_id: user.id });
+        error = fallback.error;
+      }
       if (error && error.code !== "23505") throw error;
       void track("cart_add", { beatId });
     }
