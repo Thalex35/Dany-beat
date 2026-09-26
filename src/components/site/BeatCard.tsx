@@ -32,7 +32,7 @@ export function CartButton({ beatId, licenseId, licenseName, licensePrice }: { b
               search: { redirect: safeAuthRedirect(window.location.pathname) },
             })
       }
-      className={`grid size-10 shrink-0 place-items-center rounded-full p-2 transition-all hover:scale-105 ${
+      className={`button-contour grid size-10 shrink-0 place-items-center rounded-full p-2 transition-all hover:scale-105 ${
         inCart
           ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/20"
           : "bg-surface text-muted-foreground ring-1 ring-border hover:bg-surface-2 hover:text-foreground"
@@ -62,7 +62,7 @@ export function BeatCard({
   const isPlaying = isCurrent && playing;
 
   return (
-    <article className="group flex min-w-0 flex-col gap-4 overflow-hidden">
+    <article className="beat-card group flex min-w-0 flex-col gap-4">
       <div className="public-beat-art relative aspect-video w-full overflow-hidden rounded-2xl ring-1 ring-border">
         <Link
           to="/beats/$slug"
@@ -92,7 +92,7 @@ export function BeatCard({
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-base font-medium">
-            <Link to="/beats/$slug" params={{ slug: beat.slug }} className="hover:text-primary">
+            <Link to="/beats/$slug" params={{ slug: beat.slug }} className="premium-link hover:text-primary">
               {beat.title}
             </Link>
           </h3>
@@ -111,7 +111,7 @@ export function BeatCard({
             to="/beats/$slug"
             params={{ slug: beat.slug }}
             aria-label={`Ouvrir le lecteur YouTube pour ${beat.title}`}
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
+            className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
           >
             <Play className="size-4" />
           </Link>
@@ -150,7 +150,7 @@ export function BeatCard({
                   ? `Mettre ${beat.title} en pause`
                   : `Écouter ${beat.title}`
             }
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
+            className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
           >
             {finished && isCurrent ? (
               <RotateCcw className="size-4" />
@@ -177,7 +177,7 @@ export function BeatCard({
             type="button"
             aria-label={`Télécharger l'extrait de ${beat.title}`}
             title="Télécharger l'extrait"
-            className="text-muted-foreground transition-colors hover:text-foreground"
+            className="button-contour grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
             onClick={() =>
               void downloadFile(previewUrl, downloadName(beat.slug, beat.preview_path)).catch(() =>
                 toast.error("L'extrait n'a pas pu être téléchargé."),
