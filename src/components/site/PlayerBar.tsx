@@ -54,7 +54,7 @@ export function PlayerBar() {
               value={volume}
               aria-label="Volume"
               onChange={(e) => setVolume(Number(e.target.value))}
-              className="h-1 w-20 accent-[var(--primary)]"
+              className="h-1 w-20 accent-(--primary)"
             />
           </div>
           <button
@@ -66,7 +66,7 @@ export function PlayerBar() {
                   ? "Mettre l'extrait en pause"
                   : "Écouter l'extrait"
             }
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105 sm:size-10"
+            className="button-contour grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105 sm:size-10"
           >
             {loading ? (
               <Spinner />
@@ -83,14 +83,14 @@ export function PlayerBar() {
             aria-pressed={loop}
             aria-label={loop ? "Désactiver la lecture en boucle" : "Activer la lecture en boucle"}
             title={loop ? "Désactiver la boucle" : "Activer la boucle"}
-            className={`hidden sm:block ${loop ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+            className={`button-contour hidden size-8 place-items-center rounded-full sm:grid ${loop ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Repeat className="size-4" />
           </button>
           <button
             onClick={stop}
             aria-label="Fermer le player"
-            className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground sm:size-8"
+            className="button-contour grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground sm:size-8"
           >
             <X className="size-4" />
           </button>
@@ -108,7 +108,7 @@ export function PlayerBar() {
             value={progress}
             aria-label="Position de lecture"
             onChange={(e) => seek(Number(e.target.value))}
-            className="h-1 flex-1 accent-[var(--primary)]"
+            className="h-1 flex-1 accent-(--primary)"
           />
           <span className="w-7 text-right text-[9px] tabular-nums text-muted-foreground sm:w-9 sm:text-[10px]">
             {formatTime(duration)}

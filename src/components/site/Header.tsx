@@ -22,9 +22,9 @@ export function Header() {
   const cartCount = cartIds?.length ?? 0;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
+    <header className="site-header sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-        <Link to="/" className="font-display text-xl font-semibold tracking-tighter uppercase">
+        <Link to="/" className="site-brand font-display text-xl font-semibold tracking-tighter uppercase">
           {settings?.producer_name ?? "Dany Beats"}
         </Link>
 
@@ -33,8 +33,8 @@ export function Header() {
             <Link
               key={l.to}
               to={l.to}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              activeProps={{ className: "text-foreground" }}
+              className="site-nav-link text-sm"
+              activeProps={{ className: "site-nav-link is-active text-sm" }}
               activeOptions={{ exact: l.to === "/" }}
             >
               {l.label}
@@ -79,7 +79,7 @@ export function Header() {
         </div>
 
         <button
-          className="grid size-9 place-items-center rounded-full ring-1 ring-border md:hidden"
+          className="button-contour grid size-9 place-items-center rounded-full ring-1 ring-border md:hidden"
           aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
@@ -96,7 +96,9 @@ export function Header() {
                 key={l.to}
                 to={l.to}
                 onClick={() => setOpen(false)}
-                className="rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+                className="site-mobile-link rounded-xl px-3 py-2.5 text-sm text-muted-foreground"
+                activeProps={{ className: "site-mobile-link is-active rounded-xl px-3 py-2.5 text-sm" }}
+                activeOptions={{ exact: l.to === "/" }}
               >
                 {l.label}
               </Link>
@@ -105,7 +107,8 @@ export function Header() {
               <Link
                 to="/admin"
                 onClick={() => setOpen(false)}
-                className="rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+                className="site-mobile-link rounded-xl px-3 py-2.5 text-sm text-muted-foreground"
+                activeProps={{ className: "site-mobile-link is-active rounded-xl px-3 py-2.5 text-sm" }}
               >
                 Administration
               </Link>
@@ -116,7 +119,8 @@ export function Header() {
                   to="/profile"
                   hash="favorites"
                   onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+                  className="site-mobile-link flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground"
+                  activeProps={{ className: "site-mobile-link is-active flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm" }}
                 >
                   <Heart className="size-4" aria-hidden="true" />
                   Favoris
@@ -124,7 +128,8 @@ export function Header() {
                 <Link
                   to="/profile"
                   onClick={() => setOpen(false)}
-                  className="rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+                  className="site-mobile-link rounded-xl px-3 py-2.5 text-sm text-muted-foreground"
+                  activeProps={{ className: "site-mobile-link is-active rounded-xl px-3 py-2.5 text-sm" }}
                 >
                   Mon compte
                 </Link>
@@ -132,7 +137,8 @@ export function Header() {
                   to="/profile"
                   hash="cart"
                   onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-surface hover:text-foreground"
+                  className="site-mobile-link flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground"
+                  activeProps={{ className: "site-mobile-link is-active flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm" }}
                 >
                   <ShoppingCart className="size-4" aria-hidden="true" />
                   Panier
@@ -147,7 +153,7 @@ export function Header() {
               <Link
                 to="/auth"
                 onClick={() => setOpen(false)}
-                className="mt-2 rounded-full bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground"
+                className="button-contour mt-2 rounded-full bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground"
               >
                 Connexion
               </Link>

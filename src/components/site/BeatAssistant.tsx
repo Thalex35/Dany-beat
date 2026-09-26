@@ -151,13 +151,13 @@ export function BeatAssistant() {
   return (
     <div className="fixed right-5 bottom-24 z-50 sm:right-8 sm:bottom-8">
       {open ? (
-        <section className="mb-3 flex h-[min(36rem,calc(100vh-7rem))] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl bg-background shadow-2xl ring-1 ring-border">
+        <section className="assistant-panel mb-3 flex h-[min(36rem,calc(100vh-7rem))] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl bg-background shadow-2xl ring-1 ring-border">
           <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
             <div className="flex items-center gap-2">
               <span className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground"><Bot className="size-4" /></span>
               <div><p className="text-sm font-semibold">DANY BEATS AI</p><p className="text-[11px] text-muted-foreground">Assistant catalogue</p></div>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Fermer l'assistant" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+            <button type="button" onClick={() => setOpen(false)} aria-label="Fermer l'assistant" className="button-contour grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
           </header>
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
             {messages.map((message) => (
@@ -205,7 +205,7 @@ export function BeatAssistant() {
                         to="/beats/$slug"
                         params={{ slug: beat.slug }}
                         aria-label={`Ouvrir le lecteur YouTube pour ${beat.title}`}
-                        className="grid size-8 place-items-center rounded-full bg-foreground text-background"
+                        className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
                       >
                         <Play className="size-3.5" />
                       </Link>
@@ -213,7 +213,7 @@ export function BeatAssistant() {
                       <button
                         type="button"
                         aria-label={`Écouter ${beat.title}`}
-                        className="grid size-8 place-items-center rounded-full bg-foreground text-background"
+                        className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
                         onClick={() =>
                           toggle({
                             id: beat.id,
@@ -235,7 +235,7 @@ export function BeatAssistant() {
           </div>
           <div className="border-t border-border p-3">
             <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
-              {suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void send(suggestion)} className="shrink-0 rounded-full bg-surface px-2.5 py-1 text-[11px] text-muted-foreground ring-1 ring-border hover:text-foreground">{suggestion}</button>)}
+              {suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void send(suggestion)} className="assistant-chip shrink-0 rounded-full bg-surface px-2.5 py-1 text-[11px] text-muted-foreground">{suggestion}</button>)}
             </div>
             <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); void send(); }}>
               <Input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Décris ton beat idéal" aria-label="Message à l'assistant" />
@@ -244,7 +244,7 @@ export function BeatAssistant() {
           </div>
         </section>
       ) : null}
-      <button type="button" onClick={() => setOpen((current) => !current)} aria-label={open ? "Fermer DANY BEATS AI" : "Ouvrir DANY BEATS AI"} className="ml-auto grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105">
+      <button type="button" onClick={() => setOpen((current) => !current)} aria-label={open ? "Fermer DANY BEATS AI" : "Ouvrir DANY BEATS AI"} className="button-contour ml-auto grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105">
         {open ? <X /> : <MessageCircle />}
       </button>
     </div>
