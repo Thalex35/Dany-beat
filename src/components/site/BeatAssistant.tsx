@@ -6,11 +6,53 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { supabase } from "@/integrations/supabase/client";
 import { BEAT_COLUMNS, formatPrice, type Beat } from "@/lib/beats";
+import { openWhatsapp } from "@/lib/contact";
 import { usePlayer } from "@/lib/player";
+import { useSettings } from "@/lib/settings";
 
 const suggestions = ["Trouver un beat", "Drill sombre", "Afro", "Sad", "140 BPM"];
 
-type ChatMessage = { id: number; role: "user" | "assistant"; text: string };
+type ChatMessage = { id: number; role: "user" | "assistant"; text: string; contactText?: string };
+
+function normalizeMessage(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function conversationReply(text: string) {
+  const normalized = normalizeMessage(text);
+
+  if (
+    /^(hi|hello|hey|hiya|howdy|yo|good morning|good afternoon|good evening|good night|salut|bonjour|bonsoir|coucou|cc|wesh)( there| everyone| dany| assistant| tout le monde)?( how are you| how are u| ca va| comment ca va)?$/.test(
+      normalized,
+    ) || /^(whats up|what is up)$/.test(normalized)
+  ) {
+    return "Salut ! Je peux t'aider à trouver un beat par style, ambiance ou BPM.";
+  }
+
+  if (
+    /^(thanks|thank you|thank you very much|thanks a lot|merci|merci beaucoup|je te remercie|je vous remercie)$/.test(
+      normalized,
+    )
+  ) {
+    return "Avec plaisir ! Tu cherches un autre style ou une autre ambiance ?";
+  }
+
+  if (
+    /^(help|aide|what can you do|que peux tu faire|que pouvez vous faire|comment ca marche)$/.test(
+      normalized,
+    )
+  ) {
+    return "Je peux chercher les beats publiés par style, ambiance ou BPM, puis te proposer des extraits à écouter.";
+  }
+
+  return null;
+}
 
 function parseBpm(text: string) {
   const match = text.match(/(\d{2,3})\s*bpm/i);
@@ -50,9 +92,12 @@ async function findBeats(text: string) {
 
 function answerFor(text: string, beats: Beat[]) {
   if (!beats.length) {
-    return "Je n'ai pas trouvé de beat publié correspondant à cette recherche. Essaie un genre, une ambiance ou un BPM différent.";
+    return {
+      text: "Je n'ai pas trouvé de réponse fiable. Le producteur pourra t'aider directement sur WhatsApp.",
+      contactText: text,
+    };
   }
-  return `J'ai trouvé ${beats.length} beat${beats.length > 1 ? "s" : ""} qui correspondent à ta recherche.`;
+  return { text: `J'ai trouvé ${beats.length} beat${beats.length > 1 ? "s" : ""} qui correspondent à ta recherche.` };
 }
 
 export function BeatAssistant() {
@@ -64,6 +109,8 @@ export function BeatAssistant() {
   const [recommendations, setRecommendations] = useState<Beat[]>([]);
   const [isFetching, setIsFetching] = useState(false);
   const { toggle } = usePlayer();
+  const { data: settings } = useSettings();
+  const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
 
   async function send(value = input) {
     const text = value.trim();
@@ -71,16 +118,29 @@ export function BeatAssistant() {
     setInput("");
     const id = Date.now();
     setMessages((current) => [...current, { id, role: "user", text }]);
+
+    const reply = conversationReply(text);
+    if (reply) {
+      setRecommendations([]);
+      setMessages((current) => [...current, { id: id + 1, role: "assistant", text: reply }]);
+      return;
+    }
+
     setIsFetching(true);
     try {
       const beats = await findBeats(text);
       setRecommendations(beats);
-      setMessages((current) => [...current, { id: id + 1, role: "assistant", text: answerFor(text, beats) }]);
+      setMessages((current) => [...current, { id: id + 1, role: "assistant", ...answerFor(text, beats) }]);
     } catch {
       setRecommendations([]);
       setMessages((current) => [
         ...current,
-        { id: id + 1, role: "assistant", text: "Le catalogue est momentanément indisponible. Réessaie dans un instant." },
+        {
+          id: id + 1,
+          role: "assistant",
+          text: "Je n'arrive pas à consulter le catalogue. Le producteur pourra t'aider directement sur WhatsApp.",
+          contactText: text,
+        },
       ]);
     } finally {
       setIsFetching(false);
@@ -102,6 +162,26 @@ export function BeatAssistant() {
             {messages.map((message) => (
               <div key={message.id} className={message.role === "user" ? "ml-8 rounded-2xl rounded-br-sm bg-primary p-3 text-sm text-primary-foreground" : "mr-5 rounded-2xl rounded-bl-sm bg-surface p-3 text-sm text-foreground"}>
                 {message.text}
+                {message.contactText ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="whatsapp"
+                    className="mt-3"
+                    disabled={!whatsappReady}
+                    title={whatsappReady ? undefined : "WhatsApp non configuré"}
+                    onClick={() => {
+                      if (!settings?.whatsapp_number) return;
+                      openWhatsapp({
+                        phone: settings.whatsapp_number,
+                        text: `Bonjour ${settings.producer_name || "Dany Beats"},\n\nJ'ai une question à propos du catalogue :\n${message.contactText}\n\nPouvez-vous m'aider ?`,
+                      });
+                    }}
+                  >
+                    <MessageCircle />
+                    Contacter le producteur
+                  </Button>
+                ) : null}
               </div>
             ))}
             {isFetching ? <p className="text-xs text-muted-foreground">Recherche dans le catalogue…</p> : null}
