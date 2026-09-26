@@ -1,4 +1,5 @@
 import { Bot, MessageCircle, Play, Send, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Cover } from "@/components/site/Cover";
@@ -189,12 +190,44 @@ export function BeatAssistant() {
               <div className="space-y-2 pt-1">
                 {recommendations.map((beat) => (
                   <div key={beat.id} className="flex items-center gap-2 rounded-2xl bg-surface p-2 ring-1 ring-border">
-                    <Cover path={beat.cover_path} alt="" className="size-12 shrink-0 rounded-xl" />
+                    <Cover
+                      path={beat.media_source === "youtube" ? null : beat.cover_path}
+                      alt=""
+                      className="size-12 shrink-0 rounded-xl"
+                      youtubeUrl={beat.media_source === "youtube" ? beat.youtube_url : null}
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium">{beat.title}</p>
                       <p className="text-[11px] text-muted-foreground">{beat.bpm ?? "—"} BPM · {formatPrice(beat.price)}</p>
                     </div>
-                    <button type="button" aria-label={`Écouter ${beat.title}`} className="grid size-8 place-items-center rounded-full bg-foreground text-background" onClick={() => toggle({ id: beat.id, title: beat.title, slug: beat.slug, bpm: beat.bpm, coverPath: beat.cover_path, previewPath: beat.preview_path })}><Play className="size-3.5" /></button>
+                    {beat.media_source === "youtube" ? (
+                      <Link
+                        to="/beats/$slug"
+                        params={{ slug: beat.slug }}
+                        aria-label={`Ouvrir le lecteur YouTube pour ${beat.title}`}
+                        className="grid size-8 place-items-center rounded-full bg-foreground text-background"
+                      >
+                        <Play className="size-3.5" />
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-label={`Écouter ${beat.title}`}
+                        className="grid size-8 place-items-center rounded-full bg-foreground text-background"
+                        onClick={() =>
+                          toggle({
+                            id: beat.id,
+                            title: beat.title,
+                            slug: beat.slug,
+                            bpm: beat.bpm,
+                            coverPath: beat.cover_path,
+                            previewPath: beat.preview_path,
+                          })
+                        }
+                      >
+                        <Play className="size-3.5" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

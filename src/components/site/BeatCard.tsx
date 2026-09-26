@@ -53,7 +53,11 @@ export function BeatCard({
   queue?: Beat[];
 }) {
   const { current, playing, finished, toggle, play } = usePlayer();
-  const { data: previewUrl } = useSignedUrl("previews", beat.preview_path);
+  const isYoutube = beat.media_source === "youtube";
+  const { data: previewUrl } = useSignedUrl(
+    "previews",
+    isYoutube ? null : beat.preview_path,
+  );
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
 
@@ -67,9 +71,10 @@ export function BeatCard({
           className="block h-full w-full"
         >
           <Cover
-            path={beat.cover_path}
+            path={isYoutube ? null : beat.cover_path}
             alt={`Pochette de ${beat.title}`}
             className="h-full w-full"
+            youtubeUrl={isYoutube ? beat.youtube_url : null}
           />
         </Link>
         {beat.bpm ? (
@@ -101,50 +106,61 @@ export function BeatCard({
       </div>
 
       <div className="public-beat-actions flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => {
-            const track = {
-              id: beat.id,
-              title: beat.title,
-              slug: beat.slug,
-              bpm: beat.bpm,
-              coverPath: beat.cover_path,
-              previewPath: beat.preview_path,
-            };
-            if (queue) {
-              play(
-                track,
-                queue.map((item) => ({
-                  id: item.id,
-                  title: item.title,
-                  slug: item.slug,
-                  bpm: item.bpm,
-                  coverPath: item.cover_path,
-                  previewPath: item.preview_path,
-                })),
-              );
-            } else {
-              toggle(track);
-            }
-          }}
-          aria-label={
-            finished && isCurrent
-              ? `Rejouer ${beat.title}`
-              : isPlaying
-                ? `Mettre ${beat.title} en pause`
-                : `Écouter ${beat.title}`
-          }
-          className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
-        >
-          {finished && isCurrent ? (
-            <RotateCcw className="size-4" />
-          ) : isPlaying ? (
-            <Pause className="size-4" />
-          ) : (
+        {isYoutube ? (
+          <Link
+            to="/beats/$slug"
+            params={{ slug: beat.slug }}
+            aria-label={`Ouvrir le lecteur YouTube pour ${beat.title}`}
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
+          >
             <Play className="size-4" />
-          )}
-        </button>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              const track = {
+                id: beat.id,
+                title: beat.title,
+                slug: beat.slug,
+                bpm: beat.bpm,
+                coverPath: beat.cover_path,
+                previewPath: beat.preview_path,
+              };
+              if (queue) {
+                play(
+                  track,
+                  queue.map((item) => ({
+                    id: item.id,
+                    title: item.title,
+                    slug: item.slug,
+                    bpm: item.bpm,
+                    coverPath: item.cover_path,
+                    previewPath: item.preview_path,
+                  })),
+                );
+              } else {
+                toggle(track);
+              }
+            }}
+            aria-label={
+              finished && isCurrent
+                ? `Rejouer ${beat.title}`
+                : isPlaying
+                  ? `Mettre ${beat.title} en pause`
+                  : `Écouter ${beat.title}`
+            }
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
+          >
+            {finished && isCurrent ? (
+              <RotateCcw className="size-4" />
+            ) : isPlaying ? (
+              <Pause className="size-4" />
+            ) : (
+              <Play className="size-4" />
+            )}
+          </button>
+        )}
         <div className="flex items-center gap-5 text-[10px] tracking-widest text-muted-foreground uppercase">
           <span
             className="inline-flex items-center gap-1"

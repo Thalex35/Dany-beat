@@ -22,6 +22,7 @@ import { CartButton } from "@/components/site/BeatCard";
 import { Cover } from "@/components/site/Cover";
 import { LikeButton } from "@/components/site/LikeButton";
 import { SiteLayout } from "@/components/site/SiteLayout";
+import { YoutubeEmbed } from "@/components/site/YoutubeEmbed";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,7 +62,7 @@ function BeatDetailPage() {
   const { slug } = Route.useParams();
   const { profile } = useAuth();
   const { data: settings } = useSettings();
-  const { current, playing, toggle } = usePlayer();
+  const { current, playing, toggle, stop } = usePlayer();
   const [licenseIndex, setLicenseIndex] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -80,11 +81,19 @@ function BeatDetailPage() {
   });
   const stats = useQuery(beatStatsQuery(beatQuery.data?.id ? [beatQuery.data.id] : []));
   const beat = beatQuery.data ?? null;
-  const previewUrl = useSignedUrl("previews", beat?.preview_path).data;
+  const isYoutube = beat?.media_source === "youtube";
+  const previewUrl = useSignedUrl(
+    "previews",
+    isYoutube ? null : beat?.preview_path,
+  ).data;
 
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
   }, [beat]);
+
+  useEffect(() => {
+    if (isYoutube) stop();
+  }, [isYoutube, stop]);
 
   if (beatQuery.isPending) {
     return (
@@ -202,29 +211,36 @@ function BeatDetailPage() {
 
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,420px)_1fr] lg:gap-16">
           <div>
-            <Cover
-              path={beat.cover_path}
-              alt={`Pochette de ${beat.title}`}
-              className="aspect-square w-full rounded-3xl ring-1 ring-border"
-              sizes="(min-width: 1024px) 420px, 100vw"
-            />
+            {isYoutube && beat.youtube_url ? (
+              <YoutubeEmbed url={beat.youtube_url} title={beat.title} />
+            ) : (
+              <Cover
+                path={isYoutube ? null : beat.cover_path}
+                alt={`Pochette de ${beat.title}`}
+                className="aspect-square w-full rounded-3xl ring-1 ring-border"
+                sizes="(min-width: 1024px) 420px, 100vw"
+                youtubeUrl={isYoutube ? beat.youtube_url : null}
+              />
+            )}
             <div className="mt-5 flex flex-wrap items-center gap-3 sm:gap-4">
-              <Button
-                size="md"
-                onClick={() =>
-                  toggle({
-                    id: beat.id,
-                    title: beat.title,
-                    slug: beat.slug,
-                    bpm: beat.bpm,
-                    coverPath: beat.cover_path,
-                    previewPath: beat.preview_path,
-                  })
-                }
-              >
-                {isPlaying ? <Pause /> : <Play />}
-                {isPlaying ? "Mettre en pause" : "Écouter l'extrait"}
-              </Button>
+              {!isYoutube ? (
+                <Button
+                  size="md"
+                  onClick={() =>
+                    toggle({
+                      id: beat.id,
+                      title: beat.title,
+                      slug: beat.slug,
+                      bpm: beat.bpm,
+                      coverPath: beat.cover_path,
+                      previewPath: beat.preview_path,
+                    })
+                  }
+                >
+                  {isPlaying ? <Pause /> : <Play />}
+                  {isPlaying ? "Mettre en pause" : "Écouter l'extrait"}
+                </Button>
+              ) : null}
               {s ? (
                 <LikeButton beatId={beat.id} count={s.likes} />
               ) : (

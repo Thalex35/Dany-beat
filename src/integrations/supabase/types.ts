@@ -55,6 +55,7 @@ export type Database = {
           id: string;
           licenses: Json;
           master_path: string | null;
+          media_source: string;
           mood: string | null;
           preview_path: string | null;
           price: number;
@@ -78,6 +79,7 @@ export type Database = {
           id?: string;
           licenses?: Json;
           master_path?: string | null;
+          media_source?: string;
           mood?: string | null;
           preview_path?: string | null;
           price?: number;
@@ -101,6 +103,7 @@ export type Database = {
           id?: string;
           licenses?: Json;
           master_path?: string | null;
+          media_source?: string;
           mood?: string | null;
           preview_path?: string | null;
           price?: number;
