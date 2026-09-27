@@ -118,7 +118,7 @@ export function LikeButton({
         mutation.mutate(!liked);
       }}
       className={cn(
-        "inline-flex items-center gap-1.5 text-[11px] tracking-wide text-muted-foreground transition-colors hover:text-foreground",
+        "button-contour inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] tracking-wide text-muted-foreground transition-colors hover:text-foreground",
         optimisticLiked && "text-primary hover:text-primary",
         className,
       )}
