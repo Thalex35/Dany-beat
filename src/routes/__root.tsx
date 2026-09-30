@@ -1,4 +1,6 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import {
   Outlet,
   Link,
@@ -7,7 +9,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import danyLogo from "../assets/danyLogo.png";
@@ -16,6 +18,11 @@ import { PlayerProvider } from "../lib/player";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useRealtimeSync } from "../lib/realtime";
+import {
+  PUBLIC_CATALOGUE_CACHE_MAX_AGE,
+  publicCatalogueRevisionQuery,
+  shouldPersistCatalogueQuery,
+} from "../lib/catalogue-cache";
 
 function NotFoundComponent() {
   return (
@@ -138,16 +145,47 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useRealtimeSync(queryClient);
+  const persister = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return createSyncStoragePersister({
+        storage: window.localStorage,
+        key: "dany-beats-public-catalogue",
+        throttleTime: 1000,
+      });
+    } catch {
+      return null;
+    }
+  }, []);
+  const content = <RootContent />;
+
+  return persister ? (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister,
+        maxAge: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
+        buster: "public-catalogue-v1",
+        dehydrateOptions: { shouldDehydrateQuery: shouldPersistCatalogueQuery },
+      }}
+    >
+      {content}
+    </PersistQueryClientProvider>
+  ) : (
+    <QueryClientProvider client={queryClient}>{content}</QueryClientProvider>
+  );
+}
+
+function RootContent() {
+  useQuery({ ...publicCatalogueRevisionQuery, enabled: typeof window !== "undefined" });
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <PlayerProvider>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-          <Toaster position="top-center" />
-        </PlayerProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <PlayerProvider>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+        <Toaster position="top-center" />
+      </PlayerProvider>
+    </AuthProvider>
   );
 }

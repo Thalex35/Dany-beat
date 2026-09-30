@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PUBLIC_CATALOGUE_CACHE_MAX_AGE } from "@/lib/catalogue-cache";
 
 export type License = { id: string; name: string; price: number; files: string; terms?: string };
 
@@ -70,6 +71,8 @@ export const publishedBeatsQuery = (params: {
   sort: "newest" | "oldest" | "price-asc" | "price-desc" | "popular";
 }) => ({
   queryKey: ["beats", "published", params],
+  staleTime: Infinity,
+  gcTime: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
   queryFn: async (): Promise<PublishedBeatsPage> => {
     const from = params.page * params.pageSize;
     const to = from + params.pageSize - 1;
@@ -108,7 +111,8 @@ export const publishedBeatsQuery = (params: {
 
 export const beatFilterOptionsQuery = {
   queryKey: ["beat-filter-options"],
-  staleTime: 300_000,
+  staleTime: Infinity,
+  gcTime: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
   queryFn: async (): Promise<BeatFilterOptions[]> => {
     const { data, error } = await supabase
       .from("beats")

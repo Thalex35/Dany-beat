@@ -443,6 +443,7 @@ export type Database = {
           views: number;
         }[];
       };
+      public_catalogue_revision: { Args: never; Returns: string };
       claim_first_admin: { Args: never; Returns: boolean };
       has_role: {
         Args: {

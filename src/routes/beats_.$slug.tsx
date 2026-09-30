@@ -33,6 +33,7 @@ import { usePlayer } from "@/lib/player";
 import { startPurchase } from "@/lib/contact";
 import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
 import { useSettings } from "@/lib/settings";
+import { PUBLIC_CATALOGUE_CACHE_MAX_AGE } from "@/lib/catalogue-cache";
 
 export const Route = createFileRoute("/beats_/$slug")({
   head: ({ params }) => {
@@ -68,6 +69,8 @@ function BeatDetailPage() {
 
   const beatQuery = useQuery({
     queryKey: ["beat", slug],
+    staleTime: Infinity,
+    gcTime: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
     queryFn: async (): Promise<Beat | null> => {
       const { data, error } = await supabase
         .from("beats")
