@@ -18,7 +18,6 @@ import {
 import { Badge, ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { deleteRegularUser } from "@/lib/admin-users.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
   component: AdminUsers,
@@ -63,7 +62,29 @@ function AdminUsers() {
   });
 
   const deleteUser = useMutation({
-    mutationFn: async (userId: string) => deleteRegularUser({ data: { userId } }),
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { userId },
+      });
+      if (!error) return;
+
+      const errorContext = (error as { context?: unknown }).context;
+      if (errorContext instanceof Response) {
+        const responseBody: unknown = await errorContext
+          .clone()
+          .json()
+          .catch(() => null);
+        if (
+          responseBody &&
+          typeof responseBody === "object" &&
+          "error" in responseBody &&
+          typeof responseBody.error === "string"
+        ) {
+          throw new Error(responseBody.error);
+        }
+      }
+      throw error;
+    },
     onSuccess: async (_, userId) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
