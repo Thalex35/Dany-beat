@@ -66,7 +66,7 @@ export function YoutubeEmbed({
   url,
   title,
   autoPlay = false,
-  compact = false,
+  hideVideo = false,
   hideControls = false,
   onControls,
   onPlay,
@@ -78,7 +78,7 @@ export function YoutubeEmbed({
   url: string;
   title: string;
   autoPlay?: boolean;
-  compact?: boolean;
+  hideVideo?: boolean;
   hideControls?: boolean;
   onControls?: (controls: YoutubeControls | null) => void;
   onPlay?: () => void;
@@ -184,11 +184,8 @@ export function YoutubeEmbed({
 
   return (
     <div
-      className={
-        compact
-          ? "h-50 w-50 shrink-0 overflow-hidden rounded-xl bg-black"
-          : "aspect-video min-h-50 w-full overflow-hidden rounded-2xl bg-black"
-      }
+      className={hideVideo ? "hidden" : "aspect-video min-h-50 w-full overflow-hidden rounded-2xl bg-black"}
+      aria-hidden={hideVideo}
     >
       <div ref={playerContainerRef} className="relative size-full" />
     </div>
