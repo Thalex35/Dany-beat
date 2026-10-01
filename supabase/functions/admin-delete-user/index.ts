@@ -13,6 +13,45 @@ function jsonResponse(body: Record<string, string>, status = 200) {
   });
 }
 
+function readDefaultKeyMap(name: string) {
+  const value = Deno.env.get(name);
+  if (!value) return "";
+  try {
+    const keys: unknown = JSON.parse(value);
+    if (keys && typeof keys === "object" && "default" in keys) {
+      const key = keys.default;
+      return typeof key === "string" ? key : "";
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function createAdminClient(supabaseUrl: string, serviceKey: string) {
+  return createClient(supabaseUrl, serviceKey, {
+    global: {
+      fetch: (input, init) => {
+        const headers = new Headers(
+          typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
+        );
+        if (init?.headers) {
+          new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+        }
+        if (
+          (serviceKey.startsWith("sb_publishable_") || serviceKey.startsWith("sb_secret_")) &&
+          headers.get("Authorization") === `Bearer ${serviceKey}`
+        ) {
+          headers.delete("Authorization");
+        }
+        headers.set("apikey", serviceKey);
+        return fetch(input, { ...init, headers });
+      },
+    },
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -42,9 +81,14 @@ Deno.serve(async (request: Request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const publicKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+  const publicKey =
+    Deno.env.get("SUPABASE_ANON_KEY") ??
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
+    readDefaultKeyMap("SUPABASE_PUBLISHABLE_KEYS");
   const serviceKey =
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SECRET_KEY");
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+    Deno.env.get("SUPABASE_SECRET_KEY") ??
+    readDefaultKeyMap("SUPABASE_SECRET_KEYS");
   if (!supabaseUrl || !publicKey || !serviceKey) {
     console.error("Required Supabase Edge Function environment is missing.");
     return jsonResponse({ error: "User deletion is not configured on the server." }, 500);
@@ -84,9 +128,7 @@ Deno.serve(async (request: Request) => {
     return jsonResponse({ error: "Administrator accounts cannot be deleted." }, 403);
   }
 
-  const adminClient = createClient(supabaseUrl, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const adminClient = createAdminClient(supabaseUrl, serviceKey);
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
   if (deleteError) {
     return jsonResponse({ error: "The user account could not be deleted." }, 500);
