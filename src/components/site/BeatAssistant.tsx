@@ -1,5 +1,4 @@
-import { Bot, MessageCircle, Play, Send, X } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Bot, MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
 import { useState } from "react";
 
 import { Cover } from "@/components/site/Cover";
@@ -8,7 +7,7 @@ import { Input } from "@/components/ui/field";
 import { supabase } from "@/integrations/supabase/client";
 import { BEAT_COLUMNS, formatPrice, type Beat } from "@/lib/beats";
 import { openWhatsapp } from "@/lib/contact";
-import { usePlayer } from "@/lib/player";
+import { playerTrackFromBeat, usePlayer } from "@/lib/player";
 import { useSettings } from "@/lib/settings";
 
 const suggestions = ["Trouver un beat", "Drill sombre", "Afro", "Sad", "140 BPM"];
@@ -109,7 +108,7 @@ export function BeatAssistant() {
   ]);
   const [recommendations, setRecommendations] = useState<Beat[]>([]);
   const [isFetching, setIsFetching] = useState(false);
-  const { toggle } = usePlayer();
+  const { current, playing, finished, toggle, play } = usePlayer();
   const { data: settings } = useSettings();
   const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
 
@@ -200,34 +199,27 @@ export function BeatAssistant() {
                       <p className="truncate text-xs font-medium">{beat.title}</p>
                       <p className="text-[11px] text-muted-foreground">{beat.bpm ?? "—"} BPM · {formatPrice(beat.price)}</p>
                     </div>
-                    {beat.media_source === "youtube" ? (
-                      <Link
-                        to="/beats/$slug"
-                        params={{ slug: beat.slug }}
-                        aria-label={`Ouvrir le lecteur YouTube pour ${beat.title}`}
-                        className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
-                      >
+                    <button
+                      type="button"
+                      aria-label={
+                        current?.id === beat.id && playing
+                          ? `Mettre ${beat.title} en pause`
+                          : `Lire ${beat.title}`
+                      }
+                      className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
+                      onClick={() => {
+                        if (current?.id === beat.id) toggle();
+                        else play(playerTrackFromBeat(beat));
+                      }}
+                    >
+                      {current?.id === beat.id && playing ? (
+                        <Pause className="size-3.5" />
+                      ) : current?.id === beat.id && finished ? (
+                        <RotateCcw className="size-3.5" />
+                      ) : (
                         <Play className="size-3.5" />
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        aria-label={`Écouter ${beat.title}`}
-                        className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
-                        onClick={() =>
-                          toggle({
-                            id: beat.id,
-                            title: beat.title,
-                            slug: beat.slug,
-                            bpm: beat.bpm,
-                            coverPath: beat.cover_path,
-                            previewPath: beat.preview_path,
-                          })
-                        }
-                      >
-                        <Play className="size-3.5" />
-                      </button>
-                    )}
+                      )}
+                    </button>
                   </div>
                 ))}
               </div>

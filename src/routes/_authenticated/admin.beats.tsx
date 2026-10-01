@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Cover } from "@/components/site/Cover";
-import { YoutubeEmbed } from "@/components/site/YoutubeEmbed";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import {
@@ -22,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { BEAT_COLUMNS, formatPrice, slugify, type Beat, type License } from "@/lib/beats";
 import { fileExtension } from "@/lib/media";
-import { usePlayer } from "@/lib/player";
+import { playerTrackFromBeat, usePlayer } from "@/lib/player";
 import { getYoutubeVideoId } from "@/lib/youtube";
 
 export const Route = createFileRoute("/_authenticated/admin/beats")({
@@ -701,42 +700,30 @@ function AdminBeats() {
             </DialogHeader>
             <div className="grid gap-7 pt-3 md:grid-cols-[15rem_1fr]">
               <div>
-                {selectedBeat.media_source === "youtube" && selectedBeat.youtube_url ? (
-                  <YoutubeEmbed url={selectedBeat.youtube_url} title={selectedBeat.title} />
-                ) : (
-                  <Cover
-                    path={selectedBeat.cover_path}
-                    alt={`Pochette de ${selectedBeat.title}`}
-                    className="aspect-square w-full rounded-2xl"
-                  />
-                )}
-                {selectedBeat.media_source === "youtube" ? null : (
-                  <>
-                    <Button
-                      block
-                      className="mt-4"
-                      onClick={() =>
-                        toggle({
-                          id: selectedBeat.id,
-                          title: selectedBeat.title,
-                          slug: selectedBeat.slug,
-                          bpm: selectedBeat.bpm,
-                          coverPath: selectedBeat.cover_path,
-                          previewPath: selectedBeat.preview_path,
-                        })
-                      }
-                      disabled={!selectedBeat.preview_path}
-                    >
-                      {current?.id === selectedBeat.id && playing ? <Pause /> : <Play />}
-                      {current?.id === selectedBeat.id && playing ? "Pause" : "Écouter / rejouer"}
-                    </Button>
-                    {!selectedBeat.preview_path ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Aucun extrait audio importé.
-                      </p>
-                    ) : null}
-                  </>
-                )}
+                <Cover
+                  path={selectedBeat.media_source === "youtube" ? null : selectedBeat.cover_path}
+                  alt={`Pochette de ${selectedBeat.title}`}
+                  className={`w-full rounded-2xl ${selectedBeat.media_source === "youtube" ? "aspect-video" : "aspect-square"}`}
+                  youtubeUrl={selectedBeat.media_source === "youtube" ? selectedBeat.youtube_url : null}
+                />
+                <Button
+                  block
+                  className="mt-4"
+                  onClick={() => toggle(playerTrackFromBeat(selectedBeat))}
+                  disabled={
+                    selectedBeat.media_source === "youtube"
+                      ? !selectedBeat.youtube_url
+                      : !selectedBeat.preview_path
+                  }
+                >
+                  {current?.id === selectedBeat.id && playing ? <Pause /> : <Play />}
+                  {current?.id === selectedBeat.id && playing ? "Pause" : "Écouter / rejouer"}
+                </Button>
+                {selectedBeat.media_source === "upload" && !selectedBeat.preview_path ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Aucun extrait audio importé.
+                  </p>
+                ) : null}
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
