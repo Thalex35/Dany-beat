@@ -15,6 +15,7 @@ import appCss from "../styles.css?url";
 import danyLogo from "../assets/danyLogo.png";
 import { AuthProvider } from "../lib/auth";
 import { PlayerProvider } from "../lib/player";
+import { PlayerBar } from "../components/site/PlayerBar";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useRealtimeSync } from "../lib/realtime";
@@ -184,6 +185,7 @@ function RootContent() {
       <PlayerProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <PlayerBar />
         <Toaster position="top-center" />
       </PlayerProvider>
     </AuthProvider>

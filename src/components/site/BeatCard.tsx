@@ -6,7 +6,7 @@ import { Cover } from "@/components/site/Cover";
 import { LikeButton } from "@/components/site/LikeButton";
 import { formatCount, formatPrice, type Beat, type BeatStats } from "@/lib/beats";
 import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
-import { usePlayer } from "@/lib/player";
+import { playerTrackFromBeat, usePlayer } from "@/lib/player";
 import { useAuth } from "@/lib/auth";
 import { useCartIds, useToggleCart } from "@/lib/realtime";
 import { safeAuthRedirect } from "@/lib/validation";
@@ -54,6 +54,8 @@ export function BeatCard({
 }) {
   const { current, playing, finished, toggle, play } = usePlayer();
   const isYoutube = beat.media_source === "youtube";
+  const track = playerTrackFromBeat(beat);
+  const playerQueue = queue?.map(playerTrackFromBeat);
   const { data: previewUrl } = useSignedUrl(
     "previews",
     isYoutube ? null : beat.preview_path,
@@ -106,61 +108,31 @@ export function BeatCard({
       </div>
 
       <div className="public-beat-actions flex items-center gap-4">
-        {isYoutube ? (
-          <Link
-            to="/beats/$slug"
-            params={{ slug: beat.slug }}
-            aria-label={`Ouvrir le lecteur YouTube pour ${beat.title}`}
-            className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
-          >
-            <Play className="size-4" />
-          </Link>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              const track = {
-                id: beat.id,
-                title: beat.title,
-                slug: beat.slug,
-                bpm: beat.bpm,
-                coverPath: beat.cover_path,
-                previewPath: beat.preview_path,
-              };
-              if (queue) {
-                play(
-                  track,
-                  queue.map((item) => ({
-                    id: item.id,
-                    title: item.title,
-                    slug: item.slug,
-                    bpm: item.bpm,
-                    coverPath: item.cover_path,
-                    previewPath: item.preview_path,
-                  })),
-                );
-              } else {
-                toggle(track);
-              }
-            }}
-            aria-label={
-              finished && isCurrent
-                ? `Rejouer ${beat.title}`
-                : isPlaying
-                  ? `Mettre ${beat.title} en pause`
+        <button
+          type="button"
+          onClick={() => {
+            if (isCurrent) toggle();
+            else play(track, playerQueue);
+          }}
+          aria-label={
+            finished && isCurrent
+              ? `Rejouer ${beat.title}`
+              : isPlaying
+                ? `Mettre ${beat.title} en pause`
+                : isYoutube
+                  ? `Lire ${beat.title} sur YouTube`
                   : `Écouter ${beat.title}`
-            }
-            className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
-          >
-            {finished && isCurrent ? (
-              <RotateCcw className="size-4" />
-            ) : isPlaying ? (
-              <Pause className="size-4" />
-            ) : (
-              <Play className="size-4" />
-            )}
-          </button>
-        )}
+          }
+          className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
+        >
+          {finished && isCurrent ? (
+            <RotateCcw className="size-4" />
+          ) : isPlaying ? (
+            <Pause className="size-4" />
+          ) : (
+            <Play className="size-4" />
+          )}
+        </button>
         <div className="flex items-center gap-5 text-[10px] tracking-widest text-muted-foreground uppercase">
           <span
             className="inline-flex items-center gap-1"

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Check,
@@ -13,6 +13,7 @@ import {
   Pause,
   Play,
   Share2,
+  RotateCcw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -22,7 +23,6 @@ import { CartButton } from "@/components/site/BeatCard";
 import { Cover } from "@/components/site/Cover";
 import { LikeButton } from "@/components/site/LikeButton";
 import { SiteLayout } from "@/components/site/SiteLayout";
-import { YoutubeEmbed } from "@/components/site/YoutubeEmbed";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,7 +36,7 @@ import {
   publishedPlaybackQueueQuery,
   type Beat,
 } from "@/lib/beats";
-import { usePlayer, type PlayerTrack } from "@/lib/player";
+import { playerTrackFromBeat, usePlayer } from "@/lib/player";
 import { startPurchase } from "@/lib/contact";
 import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
 import { useSettings } from "@/lib/settings";
@@ -70,10 +70,9 @@ export const Route = createFileRoute("/beats_/$slug")({
 function BeatDetailPage() {
   const { slug } = Route.useParams();
   const { autoplay } = Route.useSearch();
-  const navigate = useNavigate();
   const { profile } = useAuth();
   const { data: settings } = useSettings();
-  const { current, playing, toggle, stop, play } = usePlayer();
+  const { current, playing, finished, toggle, play } = usePlayer();
   const [licenseIndex, setLicenseIndex] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -103,8 +102,10 @@ function BeatDetailPage() {
   }, [beat]);
 
   useEffect(() => {
-    if (isYoutube) stop();
-  }, [isYoutube, stop]);
+    if (!autoplay || !beat || !isYoutube || !beat.youtube_url || !playbackQueue.isSuccess) return;
+    if (current?.id === beat.id) return;
+    play(playerTrackFromBeat(beat), playbackQueue.data.map(playerTrackFromBeat));
+  }, [autoplay, beat, current?.id, isYoutube, play, playbackQueue.data, playbackQueue.isSuccess]);
 
   if (beatQuery.isPending) {
     return (
@@ -164,45 +165,6 @@ function BeatDetailPage() {
     return typeof window === "undefined" ? "" : window.location.href;
   }
 
-  async function advanceYoutubeQueue() {
-    if (!beat) return;
-    const queue = playbackQueue.data ?? (await playbackQueue.refetch()).data ?? [];
-    const currentIndex = queue.findIndex((item) => item.id === beat.id);
-    const nextBeat = currentIndex >= 0 ? queue[currentIndex + 1] : undefined;
-    if (!nextBeat) return;
-
-    if (nextBeat.media_source === "youtube" && nextBeat.youtube_url) {
-      await navigate({
-        to: "/beats/$slug",
-        params: { slug: nextBeat.slug },
-        search: { autoplay: true },
-        replace: true,
-      });
-      return;
-    }
-
-    const uploadQueue = queue
-      .slice(currentIndex + 1)
-      .filter((item) => item.media_source === "upload" && item.preview_path)
-      .map((item): PlayerTrack => ({
-        id: item.id,
-        title: item.title,
-        slug: item.slug,
-        bpm: item.bpm,
-        coverPath: item.cover_path,
-        previewPath: item.preview_path,
-      }));
-    const nextUpload = uploadQueue[0];
-    if (!nextUpload) return;
-
-    play(nextUpload, uploadQueue);
-    await navigate({
-      to: "/beats/$slug",
-      params: { slug: nextUpload.slug },
-      replace: true,
-    });
-  }
-
   function shareOnWhatsApp() {
     const text = `Écoute le beat « ${beat.title} » sur DANY BEATS : ${shareUrl()}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
@@ -257,42 +219,37 @@ function BeatDetailPage() {
 
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,420px)_1fr] lg:gap-16">
           <div>
-            {isYoutube && beat.youtube_url ? (
-              <YoutubeEmbed
-                url={beat.youtube_url}
-                title={beat.title}
-                autoPlay={autoplay}
-                onPlay={() => void track("beat_play", { beatId: beat.id, once: true })}
-                onEnded={() => void advanceYoutubeQueue()}
-              />
-            ) : (
-              <Cover
-                path={isYoutube ? null : beat.cover_path}
-                alt={`Pochette de ${beat.title}`}
-                className="aspect-square w-full rounded-3xl ring-1 ring-border"
-                sizes="(min-width: 1024px) 420px, 100vw"
-                youtubeUrl={isYoutube ? beat.youtube_url : null}
-              />
-            )}
+            <Cover
+              path={isYoutube ? null : beat.cover_path}
+              alt={`Pochette de ${beat.title}`}
+              className={`w-full rounded-3xl ring-1 ring-border ${isYoutube ? "aspect-video" : "aspect-square"}`}
+              sizes="(min-width: 1024px) 420px, 100vw"
+              youtubeUrl={isYoutube ? beat.youtube_url : null}
+            />
             <div className="mt-5 flex flex-wrap items-center gap-3 sm:gap-4">
-              {!isYoutube ? (
-                <Button
-                  size="md"
-                  onClick={() =>
-                    toggle({
-                      id: beat.id,
-                      title: beat.title,
-                      slug: beat.slug,
-                      bpm: beat.bpm,
-                      coverPath: beat.cover_path,
-                      previewPath: beat.preview_path,
-                    })
+              <Button
+                size="md"
+                disabled={isYoutube ? !beat.youtube_url : !beat.preview_path}
+                onClick={() => {
+                  if (isCurrent) {
+                    toggle();
+                    return;
                   }
-                >
-                  {isPlaying ? <Pause /> : <Play />}
-                  {isPlaying ? "Mettre en pause" : "Écouter l'extrait"}
-                </Button>
-              ) : null}
+                  play(
+                    playerTrackFromBeat(beat),
+                    isYoutube ? playbackQueue.data?.map(playerTrackFromBeat) : undefined,
+                  );
+                }}
+              >
+                {isPlaying ? <Pause /> : finished && isCurrent ? <RotateCcw /> : <Play />}
+                {isPlaying
+                  ? "Mettre en pause"
+                  : finished && isCurrent
+                    ? "Rejouer"
+                    : isYoutube
+                      ? "Lire sur YouTube"
+                      : "Écouter l'extrait"}
+              </Button>
               {s ? (
                 <LikeButton beatId={beat.id} count={s.likes} />
               ) : (

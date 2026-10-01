@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 
 import { Header } from "@/components/site/Header";
 import { BeatAssistant } from "@/components/site/BeatAssistant";
-import { PlayerBar } from "@/components/site/PlayerBar";
 import { usePlayer } from "@/lib/player";
 import { useSettings } from "@/lib/settings";
 
@@ -48,10 +47,7 @@ function Footer() {
           <p className="eyebrow">Parlons musique</p>
           <div className="mt-4 grid gap-3 text-sm text-muted-foreground">
             {settings?.contact_email ? (
-              <a
-                href={`mailto:${settings.contact_email}`}
-                className="premium-link footer-link"
-              >
+              <a href={`mailto:${settings.contact_email}`} className="premium-link footer-link">
                 {settings.contact_email}
               </a>
             ) : (
@@ -113,12 +109,12 @@ function Footer() {
 
 export function SiteLayout({ children }: { children: ReactNode }) {
   const { current } = usePlayer();
+  const bottomPadding = current?.mediaSource === "youtube" ? "pb-80" : current ? "pb-40" : "pb-10";
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className={current ? "flex-1 pb-40" : "flex-1 pb-10"}>{children}</main>
+      <main className={`flex-1 ${bottomPadding}`}>{children}</main>
       <Footer />
-      <PlayerBar />
       <BeatAssistant />
     </div>
   );
