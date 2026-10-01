@@ -1,12 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge, ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { deleteRegularUser } from "@/lib/admin-users.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
   component: AdminUsers,
@@ -26,6 +38,7 @@ type UserRow = {
 function AdminUsers() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [userToDelete, setUserToDelete] = useState<UserRow | null>(null);
   const users = useQuery({
     queryKey: ["admin-users"],
     queryFn: async (): Promise<UserRow[]> => {
@@ -47,6 +60,25 @@ function AdminUsers() {
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Le rôle n'a pas pu être mis à jour."),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => deleteRegularUser({ data: { userId } }),
+    onSuccess: async (_, userId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["beat-stats"] }),
+      ]);
+      setUserToDelete(null);
+      toast.success("Utilisateur supprimé");
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "L'utilisateur n'a pas pu être supprimé.",
+      ),
   });
 
   if (users.isError) {
@@ -74,7 +106,7 @@ function AdminUsers() {
         </div>
       </header>
       <div className="admin-data-panel overflow-x-auto">
-        <table className="w-full min-w-[40rem] text-left text-sm">
+        <table className="w-full min-w-160 text-left text-sm">
           <thead className="bg-surface text-[10px] tracking-[0.2em] text-muted-foreground uppercase">
             <tr>
               <th className="px-4 py-3 font-normal">Nom</th>
@@ -84,18 +116,19 @@ function AdminUsers() {
               <th className="px-4 py-3 font-normal">Commentaires</th>
               <th className="px-4 py-3 font-normal">Dernière visite</th>
               <th className="px-4 py-3 font-normal">Rôle</th>
+              <th className="px-4 py-3 text-right font-normal">Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.isPending ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6">
+                <td colSpan={8} className="px-4 py-6">
                   <Skeleton className="h-5 w-full" />
                 </td>
               </tr>
             ) : (users.data ?? []).length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                   Aucun utilisateur inscrit pour le moment.
                 </td>
               </tr>
@@ -125,12 +158,59 @@ function AdminUsers() {
                       </Button>
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    {!u.is_admin ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Supprimer ${u.email}`}
+                        title="Supprimer l'utilisateur"
+                        disabled={deleteUser.isPending || u.id === user?.id}
+                        onClick={() => setUserToDelete(u)}
+                      >
+                        <Trash2 className="size-4" aria-hidden="true" />
+                      </Button>
+                    ) : null}
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+      <AlertDialog
+        open={!!userToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleteUser.isPending) setUserToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {userToDelete?.email} sera supprimé. Son profil, ses likes, commentaires, panier et
+              demandes d'achat seront effacés. Ses événements de statistiques seront conservés sans
+              lien vers son compte. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteUser.isPending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                variant="destructive"
+                disabled={deleteUser.isPending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (userToDelete) deleteUser.mutate(userToDelete.id);
+                }}
+              >
+                {deleteUser.isPending ? "Suppression…" : "Supprimer le compte"}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
