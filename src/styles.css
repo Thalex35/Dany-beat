@@ -73,8 +73,8 @@
   --chart-2: oklch(0.75 0.16 155);
   --chart-3: oklch(0.7 0.12 240);
   --chart-4: oklch(0.8 0.14 90);
-  --contour-cyan: oklch(0.77 0.15 205);
-  --contour-mint: oklch(0.78 0.16 155);
+  --contour-cyan: #2dd4bf;
+  --contour-mint: #2dd4bf;
 }
 
 @layer base {
@@ -188,15 +188,12 @@
     display: inline-flex;
     align-items: center;
     min-height: 2.5rem;
-    border: 1px solid transparent;
-    border-radius: 999px;
+    border: 0;
+    border-radius: 0;
     padding: 0.45rem 0.8rem;
     color: var(--muted-foreground);
     transition:
       color 180ms ease,
-      background-color 180ms ease,
-      border-color 180ms ease,
-      box-shadow 180ms ease,
       transform 180ms ease;
   }
 
@@ -206,7 +203,7 @@
     bottom: 0.25rem;
     left: 0.8rem;
     height: 1px;
-    background: linear-gradient(90deg, var(--primary), var(--contour-cyan));
+    background: var(--contour-cyan);
     content: "";
     transform: scaleX(0);
     transform-origin: left;
@@ -215,34 +212,44 @@
 
   .site-nav-link:hover,
   .site-nav-link.is-active {
-    border-color: color-mix(in oklab, var(--primary) 32%, var(--border));
-    background: color-mix(in oklab, var(--primary) 8%, var(--surface));
     color: var(--foreground);
   }
 
   .site-nav-link:hover {
-    box-shadow: 0 0 20px color-mix(in oklab, var(--primary) 10%, transparent);
     transform: translateY(-1px);
   }
 
-  .site-nav-link:hover::after,
-  .site-nav-link.is-active::after {
+  .site-nav-link:hover::after {
     transform: scaleX(1);
   }
 
   .site-mobile-link {
-    border: 1px solid transparent;
-    transition:
-      color 180ms ease,
-      background-color 180ms ease,
-      border-color 180ms ease;
+    position: relative;
+    border: 0;
+    border-radius: 0;
+    transition: color 180ms ease;
+  }
+
+  .site-mobile-link::after {
+    position: absolute;
+    right: 0;
+    bottom: 0.1rem;
+    left: 0;
+    height: 1px;
+    background: var(--contour-cyan);
+    content: "";
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 180ms ease;
   }
 
   .site-mobile-link:hover,
   .site-mobile-link.is-active {
-    border-color: color-mix(in oklab, var(--primary) 32%, var(--border));
-    background: color-mix(in oklab, var(--primary) 8%, var(--surface));
     color: var(--foreground);
+  }
+
+  .site-mobile-link:hover::after {
+    transform: scaleX(1);
   }
 
   .button-contour,
@@ -255,27 +262,31 @@
   button:not(.assistant-chip)::after {
     position: absolute;
     z-index: 2;
-    inset: -1px;
+    inset: -1.5px;
     border-radius: inherit;
-    padding: 1px;
+    padding: 1.5px;
     background: conic-gradient(
       from var(--contour-angle),
       transparent 0deg,
-      var(--contour-cyan) 64deg,
-      var(--primary) 150deg,
-      transparent 210deg,
-      var(--contour-mint) 290deg,
+      var(--contour-cyan) 90deg,
+      transparent 180deg,
+      var(--contour-cyan) 270deg,
       transparent 360deg
     );
     content: "";
-    opacity: 0.38;
+    opacity: 0.72;
     pointer-events: none;
+    animation: contour-turn 8s linear infinite;
     transition:
       opacity 180ms ease,
       filter 180ms ease;
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
     mask-composite: exclude;
   }
 
@@ -284,7 +295,141 @@
   button:not(.assistant-chip):hover::after,
   button:not(.assistant-chip):focus-visible::after {
     opacity: 1;
-    filter: drop-shadow(0 0 5px color-mix(in oklab, var(--contour-cyan) 48%, transparent));
+    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--contour-cyan) 65%, transparent));
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea,
+  [role="combobox"] {
+    border: 1.5px solid transparent;
+    background-image:
+      linear-gradient(var(--background), var(--background)),
+      conic-gradient(
+        from var(--contour-angle),
+        transparent 0deg,
+        var(--contour-cyan) 90deg,
+        transparent 180deg,
+        var(--contour-cyan) 270deg,
+        transparent 360deg
+      );
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    animation: contour-turn 8s linear infinite;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+  select:focus,
+  textarea:focus,
+  [role="combobox"]:focus,
+  [role="combobox"]:focus-within {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--contour-cyan) 50%, transparent),
+      0 0 12px color-mix(in oklab, var(--contour-cyan) 24%, transparent);
+  }
+
+  :is(
+    .panel,
+    .beat-card,
+    .assistant-panel,
+    .site-footer,
+    .contact-panel,
+    .admin-welcome,
+    .admin-settings-panel,
+    .admin-editor-panel,
+    .admin-metric-card,
+    .admin-data-panel,
+    .public-filter-bar,
+    .premium-list,
+    .premium-total,
+    .premium-checkout,
+    .profile-form,
+    .profile-hero,
+    [class~="bg-card"][class~="border"],
+    [class*="rounded-"][class~="ring-border"]
+  ) {
+    position: relative;
+    isolation: isolate;
+  }
+
+  :is(
+    .panel,
+    .beat-card,
+    .assistant-panel,
+    .site-footer,
+    .contact-panel,
+    .admin-welcome,
+    .admin-settings-panel,
+    .admin-editor-panel,
+    .admin-metric-card,
+    .admin-data-panel,
+    .public-filter-bar,
+    .premium-list,
+    .premium-total,
+    .premium-checkout,
+    .profile-form,
+    .profile-hero,
+    [class~="bg-card"][class~="border"],
+    [class*="rounded-"][class~="ring-border"]
+  )::before {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    border-radius: inherit;
+    padding: 2px;
+    background: conic-gradient(
+      from var(--contour-angle),
+      transparent 0deg,
+      var(--contour-cyan) 90deg,
+      transparent 180deg,
+      var(--contour-cyan) 270deg,
+      transparent 360deg
+    );
+    content: "";
+    opacity: 0.78;
+    pointer-events: none;
+    animation: contour-turn 12s linear infinite;
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    transition:
+      opacity 180ms ease,
+      filter 180ms ease;
+  }
+
+  :is(
+      .panel,
+      .beat-card,
+      .assistant-panel,
+      .site-footer,
+      .contact-panel,
+      .admin-welcome,
+      .admin-settings-panel,
+      .admin-editor-panel,
+      .admin-metric-card,
+      .admin-data-panel,
+      .public-filter-bar,
+      .premium-list,
+      .premium-total,
+      .premium-checkout,
+      .profile-form,
+      .profile-hero,
+      [class~="bg-card"][class~="border"],
+      [class*="rounded-"][class~="ring-border"]
+    ):hover::before {
+    opacity: 1;
+    filter: drop-shadow(0 0 7px color-mix(in oklab, var(--contour-cyan) 58%, transparent));
+  }
+
+  .beat-card .public-beat-actions .button-contour {
+    width: 45px;
+    height: 45px;
+    padding: 0;
   }
 
   .premium-link {
@@ -349,38 +494,6 @@
       box-shadow 240ms ease;
   }
 
-  .beat-card::before,
-  .assistant-panel::before {
-    position: absolute;
-    z-index: 0;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: conic-gradient(
-      from var(--contour-angle),
-      transparent 0deg,
-      color-mix(in oklab, var(--contour-cyan) 82%, transparent) 56deg,
-      color-mix(in oklab, var(--primary) 90%, transparent) 132deg,
-      transparent 190deg,
-      color-mix(in oklab, var(--contour-mint) 78%, transparent) 284deg,
-      transparent 360deg
-    );
-    content: "";
-    opacity: 0.62;
-    pointer-events: none;
-    animation: contour-turn 14s linear infinite;
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask-composite: exclude;
-  }
-
-  .beat-card > *,
-  .assistant-panel > * {
-    position: relative;
-    z-index: 1;
-  }
-
   .beat-card:hover {
     border-color: color-mix(in oklab, var(--contour-cyan) 35%, var(--border));
     box-shadow:
@@ -388,12 +501,6 @@
       0 0 30px color-mix(in oklab, var(--contour-cyan) 9%, transparent),
       inset 0 1px 0 color-mix(in oklab, white 8%, transparent);
     transform: translateY(-4px);
-  }
-
-  .beat-card:hover::before,
-  .assistant-panel:hover::before {
-    opacity: 1;
-    filter: drop-shadow(0 0 5px color-mix(in oklab, var(--primary) 40%, transparent));
   }
 
   .beat-card .public-beat-art {
@@ -428,10 +535,6 @@
     box-shadow:
       0 24px 72px color-mix(in oklab, black 42%, transparent),
       0 0 32px color-mix(in oklab, var(--primary) 8%, transparent);
-  }
-
-  .assistant-panel::before {
-    opacity: 0.76;
   }
 
   .assistant-chip {
