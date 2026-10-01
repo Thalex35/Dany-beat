@@ -23,5 +23,8 @@ describe("YouTube URL helpers", () => {
     expect(youtubeEmbedUrl(videoUrl)).toBe(
       "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0",
     );
+    expect(youtubeEmbedUrl(videoUrl, { enableApi: true, autoPlay: true })).toBe(
+      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&enablejsapi=1&autoplay=1",
+    );
   });
 });

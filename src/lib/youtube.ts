@@ -32,7 +32,15 @@ export function youtubeThumbnailUrl(value: string | null | undefined) {
   return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
 }
 
-export function youtubeEmbedUrl(value: string | null | undefined) {
+export function youtubeEmbedUrl(
+  value: string | null | undefined,
+  options: { enableApi?: boolean; autoPlay?: boolean } = {},
+) {
   const videoId = getYoutubeVideoId(value);
-  return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}?playsinline=1&rel=0` : null;
+  if (!videoId) return null;
+
+  const params = new URLSearchParams({ playsinline: "1", rel: "0" });
+  if (options.enableApi) params.set("enablejsapi", "1");
+  if (options.autoPlay) params.set("autoplay", "1");
+  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 }

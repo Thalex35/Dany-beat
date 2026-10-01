@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Check,
@@ -28,14 +28,22 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
-import { BEAT_COLUMNS, beatStatsQuery, formatCount, formatPrice, type Beat } from "@/lib/beats";
-import { usePlayer } from "@/lib/player";
+import {
+  BEAT_COLUMNS,
+  beatStatsQuery,
+  formatCount,
+  formatPrice,
+  publishedPlaybackQueueQuery,
+  type Beat,
+} from "@/lib/beats";
+import { usePlayer, type PlayerTrack } from "@/lib/player";
 import { startPurchase } from "@/lib/contact";
 import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
 import { useSettings } from "@/lib/settings";
 import { PUBLIC_CATALOGUE_CACHE_MAX_AGE } from "@/lib/catalogue-cache";
 
 export const Route = createFileRoute("/beats_/$slug")({
+  validateSearch: (search: Record<string, unknown>) => ({ autoplay: search.autoplay === true }),
   head: ({ params }) => {
     const name = params.slug.replace(/-/g, " ");
     const title = `${name} — instrumentale | Dany Beats`;
@@ -61,9 +69,11 @@ export const Route = createFileRoute("/beats_/$slug")({
 
 function BeatDetailPage() {
   const { slug } = Route.useParams();
+  const { autoplay } = Route.useSearch();
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { data: settings } = useSettings();
-  const { current, playing, toggle, stop } = usePlayer();
+  const { current, playing, toggle, stop, play } = usePlayer();
   const [licenseIndex, setLicenseIndex] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -85,10 +95,8 @@ function BeatDetailPage() {
   const stats = useQuery(beatStatsQuery(beatQuery.data?.id ? [beatQuery.data.id] : []));
   const beat = beatQuery.data ?? null;
   const isYoutube = beat?.media_source === "youtube";
-  const previewUrl = useSignedUrl(
-    "previews",
-    isYoutube ? null : beat?.preview_path,
-  ).data;
+  const playbackQueue = useQuery({ ...publishedPlaybackQueueQuery, enabled: isYoutube });
+  const previewUrl = useSignedUrl("previews", isYoutube ? null : beat?.preview_path).data;
 
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
@@ -156,13 +164,48 @@ function BeatDetailPage() {
     return typeof window === "undefined" ? "" : window.location.href;
   }
 
+  async function advanceYoutubeQueue() {
+    if (!beat) return;
+    const queue = playbackQueue.data ?? (await playbackQueue.refetch()).data ?? [];
+    const currentIndex = queue.findIndex((item) => item.id === beat.id);
+    const nextBeat = currentIndex >= 0 ? queue[currentIndex + 1] : undefined;
+    if (!nextBeat) return;
+
+    if (nextBeat.media_source === "youtube" && nextBeat.youtube_url) {
+      await navigate({
+        to: "/beats/$slug",
+        params: { slug: nextBeat.slug },
+        search: { autoplay: true },
+        replace: true,
+      });
+      return;
+    }
+
+    const uploadQueue = queue
+      .slice(currentIndex + 1)
+      .filter((item) => item.media_source === "upload" && item.preview_path)
+      .map((item): PlayerTrack => ({
+        id: item.id,
+        title: item.title,
+        slug: item.slug,
+        bpm: item.bpm,
+        coverPath: item.cover_path,
+        previewPath: item.preview_path,
+      }));
+    const nextUpload = uploadQueue[0];
+    if (!nextUpload) return;
+
+    play(nextUpload, uploadQueue);
+    await navigate({
+      to: "/beats/$slug",
+      params: { slug: nextUpload.slug },
+      replace: true,
+    });
+  }
+
   function shareOnWhatsApp() {
     const text = `Écoute le beat « ${beat.title} » sur DANY BEATS : ${shareUrl()}`;
-    window.open(
-      `https://wa.me/?text=${encodeURIComponent(text)}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
   function shareOnFacebook() {
@@ -215,7 +258,13 @@ function BeatDetailPage() {
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,420px)_1fr] lg:gap-16">
           <div>
             {isYoutube && beat.youtube_url ? (
-              <YoutubeEmbed url={beat.youtube_url} title={beat.title} />
+              <YoutubeEmbed
+                url={beat.youtube_url}
+                title={beat.title}
+                autoPlay={autoplay}
+                onPlay={() => void track("beat_play", { beatId: beat.id, once: true })}
+                onEnded={() => void advanceYoutubeQueue()}
+              />
             ) : (
               <Cover
                 path={isYoutube ? null : beat.cover_path}
@@ -445,7 +494,6 @@ function BeatDetailPage() {
                 </div>
               </fieldset>
             ) : null}
-
           </div>
         </div>
 

@@ -123,6 +123,43 @@ export const beatFilterOptionsQuery = {
   },
 };
 
+export const publishedPlaybackQueueQuery = {
+  queryKey: ["beats", "published-playback-queue"],
+  staleTime: 300_000,
+  queryFn: async (): Promise<
+    Pick<
+      Beat,
+      | "id"
+      | "title"
+      | "slug"
+      | "bpm"
+      | "cover_path"
+      | "preview_path"
+      | "media_source"
+      | "youtube_url"
+    >[]
+  > => {
+    const { data, error } = await supabase
+      .from("beats")
+      .select("id, title, slug, bpm, cover_path, preview_path, media_source, youtube_url")
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Pick<
+      Beat,
+      | "id"
+      | "title"
+      | "slug"
+      | "bpm"
+      | "cover_path"
+      | "preview_path"
+      | "media_source"
+      | "youtube_url"
+    >[];
+  },
+};
+
 export const beatStatsQuery = (beatIds?: string[]) => ({
   queryKey: ["beat-stats", beatIds ?? "all"],
   staleTime: 30_000,
