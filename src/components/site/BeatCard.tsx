@@ -54,12 +54,10 @@ export function BeatCard({
 }) {
   const { current, playing, finished, toggle, play } = usePlayer();
   const isYoutube = beat.media_source === "youtube";
+  const usesYoutubePlayback = isYoutube && !beat.preview_path;
   const track = playerTrackFromBeat(beat);
   const playerQueue = queue?.map(playerTrackFromBeat);
-  const { data: previewUrl } = useSignedUrl(
-    "previews",
-    isYoutube ? null : beat.preview_path,
-  );
+  const { data: previewUrl } = useSignedUrl("previews", beat.preview_path);
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
 
@@ -119,7 +117,7 @@ export function BeatCard({
               ? `Rejouer ${beat.title}`
               : isPlaying
                 ? `Mettre ${beat.title} en pause`
-                : isYoutube
+                : usesYoutubePlayback
                   ? `Lire ${beat.title} sur YouTube`
                   : `Écouter ${beat.title}`
           }

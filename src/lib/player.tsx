@@ -47,7 +47,7 @@ export function playerTrackFromBeat(beat: {
     bpm: beat.bpm,
     coverPath: beat.cover_path,
     previewPath: beat.preview_path,
-    mediaSource: beat.media_source,
+    mediaSource: beat.preview_path ? "upload" : beat.media_source,
     youtubeUrl: beat.youtube_url,
   };
 }
@@ -506,7 +506,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const updateArtwork = async () => {
       try {
         const artworkUrl =
-          current.mediaSource === "youtube"
+          current.youtubeUrl
             ? youtubeThumbnailUrl(current.youtubeUrl)
             : await signedUrl("covers", current.coverPath);
         if (!cancelled && artworkUrl) session.metadata = metadata([{ src: artworkUrl }]);

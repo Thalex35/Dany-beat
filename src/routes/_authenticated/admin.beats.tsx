@@ -395,7 +395,7 @@ function AdminBeats() {
               htmlFor="youtube_url"
               hint={
                 form.media_source === "youtube"
-                  ? "Requis. La miniature et le lecteur seront chargés depuis YouTube."
+                  ? "Requis. Importez aussi un extrait audio ci-dessous pour utiliser le lecteur natif du site."
                   : "Lien facultatif vers la vidéo, affiché sur la fiche publique."
               }
             >
@@ -410,8 +410,9 @@ function AdminBeats() {
             </Field>
             {form.media_source === "youtube" ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                Ce beat utilise le lecteur visible de YouTube. Aucune pochette ou preview audio
-                n'est chargée depuis Supabase.
+                {form.preview_path
+                  ? "L'extrait audio importé sera lu sur le site; le lien vidéo YouTube restera disponible sur la fiche."
+                  : "Sans extrait audio importé, la lecture utilise YouTube et peut être limitée en arrière-plan."}
               </p>
             ) : null}
           </div>
@@ -517,11 +518,20 @@ function AdminBeats() {
                   },
                 ] as const
               )
-                .filter((slot) => form.media_source === "upload" || slot.bucket === "masters")
+                .filter(
+                  (slot) =>
+                    form.media_source === "upload" ||
+                    slot.bucket === "masters" ||
+                    slot.bucket === "previews",
+                )
                 .map((slot) => (
                 <div key={slot.bucket} className="rounded-2xl bg-background p-4 ring-1 ring-border">
                   <p className="text-sm font-medium">{slot.label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{slot.hint}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {slot.bucket === "previews" && form.media_source === "youtube"
+                      ? "MP3 natif pour écouter et enchaîner les beats; le lien YouTube est conservé."
+                      : slot.hint}
+                  </p>
                   <label className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
                     <Upload className="size-4" aria-hidden="true" />
                     {slot.path ? "Remplacer le fichier" : "Importer un fichier"}

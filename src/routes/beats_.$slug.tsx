@@ -92,8 +92,9 @@ function BeatDetailPage() {
   const stats = useQuery(beatStatsQuery(beatQuery.data?.id ? [beatQuery.data.id] : []));
   const beat = beatQuery.data ?? null;
   const isYoutube = beat?.media_source === "youtube";
+  const usesYoutubePlayback = isYoutube && !beat?.preview_path;
   const playbackQueue = useQuery(publishedPlaybackQueueQuery);
-  const previewUrl = useSignedUrl("previews", isYoutube ? null : beat?.preview_path).data;
+  const previewUrl = useSignedUrl("previews", beat?.preview_path).data;
 
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
@@ -221,7 +222,7 @@ function BeatDetailPage() {
             <div className="mt-5 flex flex-wrap items-center gap-3 sm:gap-4">
               <Button
                 size="md"
-                disabled={isYoutube ? !beat.youtube_url : !beat.preview_path}
+                disabled={usesYoutubePlayback ? !beat.youtube_url : !beat.preview_path}
                 onClick={() => {
                   if (isCurrent) {
                     toggle();
@@ -238,7 +239,7 @@ function BeatDetailPage() {
                   ? "Mettre en pause"
                   : finished && isCurrent
                     ? "Rejouer"
-                    : isYoutube
+                    : usesYoutubePlayback
                       ? "Lire sur YouTube"
                       : "Écouter l'extrait"}
               </Button>
