@@ -1,0 +1,2 @@
+-- Superseded by 00000000000000_initial_schema.sql.
+-- The initial migration already contains the complete schema from this revision.

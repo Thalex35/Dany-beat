@@ -1,4 +1,6 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import {
   Outlet,
   Link,
@@ -7,14 +9,22 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import danyLogo from "../assets/danyLogo.png";
 import { AuthProvider } from "../lib/auth";
 import { PlayerProvider } from "../lib/player";
+import { PlayerBar } from "../components/site/PlayerBar";
+import { PwaInstallPrompt } from "../components/site/PwaInstallPrompt";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useRealtimeSync } from "../lib/realtime";
+import {
+  PUBLIC_CATALOGUE_CACHE_MAX_AGE,
+  publicCatalogueRevisionQuery,
+  shouldPersistCatalogueQuery,
+} from "../lib/catalogue-cache";
 
 function NotFoundComponent() {
   return (
@@ -80,7 +90,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+      },
+      { name: "theme-color", content: "#101010" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Dany Beats" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { title: "Dany Beats — Instrumentales rap & trap premium" },
       {
         name: "description",
@@ -95,7 +113,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@DanyBeats" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -108,7 +126,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: danyLogo, type: "image/png" },
+      { rel: "manifest", href: "/manifest.json" },
+      { rel: "apple-touch-icon", href: "/icons/app-icon-192.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -134,16 +154,49 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useRealtimeSync(queryClient);
+  const persister = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return createSyncStoragePersister({
+        storage: window.localStorage,
+        key: "dany-beats-public-catalogue",
+        throttleTime: 1000,
+      });
+    } catch {
+      return null;
+    }
+  }, []);
+  const content = <RootContent />;
+
+  return persister ? (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister,
+        maxAge: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
+        buster: "public-catalogue-v1",
+        dehydrateOptions: { shouldDehydrateQuery: shouldPersistCatalogueQuery },
+      }}
+    >
+      {content}
+    </PersistQueryClientProvider>
+  ) : (
+    <QueryClientProvider client={queryClient}>{content}</QueryClientProvider>
+  );
+}
+
+function RootContent() {
+  useQuery({ ...publicCatalogueRevisionQuery, enabled: typeof window !== "undefined" });
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <PlayerProvider>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-          <Toaster position="top-center" />
-        </PlayerProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <PlayerProvider>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+        <PlayerBar />
+        <Toaster position="top-center" />
+        <PwaInstallPrompt />
+      </PlayerProvider>
+    </AuthProvider>
   );
 }

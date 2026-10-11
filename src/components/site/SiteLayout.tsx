@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 
 import { Header } from "@/components/site/Header";
 import { BeatAssistant } from "@/components/site/BeatAssistant";
-import { PlayerBar } from "@/components/site/PlayerBar";
 import { usePlayer } from "@/lib/player";
 import { useSettings } from "@/lib/settings";
 
@@ -30,16 +29,16 @@ function Footer() {
         <div>
           <p className="eyebrow">Navigation</p>
           <nav className="mt-4 grid gap-3 text-sm text-muted-foreground">
-            <Link to="/" className="transition-colors hover:text-foreground">
+            <Link to="/" className="premium-link footer-link">
               Accueil
             </Link>
-            <Link to="/beats" className="transition-colors hover:text-foreground">
+            <Link to="/beats" className="premium-link footer-link">
               Catalogue
             </Link>
-            <Link to="/about" className="transition-colors hover:text-foreground">
+            <Link to="/about" className="premium-link footer-link">
               À propos
             </Link>
-            <Link to="/contact" className="transition-colors hover:text-foreground">
+            <Link to="/contact" className="premium-link footer-link">
               Contact
             </Link>
           </nav>
@@ -48,10 +47,7 @@ function Footer() {
           <p className="eyebrow">Parlons musique</p>
           <div className="mt-4 grid gap-3 text-sm text-muted-foreground">
             {settings?.contact_email ? (
-              <a
-                href={`mailto:${settings.contact_email}`}
-                className="transition-colors hover:text-primary"
-              >
+              <a href={`mailto:${settings.contact_email}`} className="premium-link footer-link">
                 {settings.contact_email}
               </a>
             ) : (
@@ -61,7 +57,7 @@ function Footer() {
               href={
                 settings?.whatsapp_number ? `tel:${settings.whatsapp_number}` : "tel:+212600000000"
               }
-              className="transition-colors hover:text-primary"
+              className="premium-link footer-link"
             >
               {settings?.whatsapp_number || "+212 6 00 00 00 00"}
             </a>
@@ -73,20 +69,20 @@ function Footer() {
                     href={s.url!}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="transition-colors hover:text-primary"
+                    className="premium-link footer-link"
                   >
                     {s.label}
                   </a>
                 ))
               ) : (
                 <>
-                  <a href="#" className="hover:text-primary">
+                  <a href="#" className="premium-link footer-link">
                     YouTube
                   </a>
-                  <a href="#" className="hover:text-primary">
+                  <a href="#" className="premium-link footer-link">
                     TikTok
                   </a>
-                  <a href="#" className="hover:text-primary">
+                  <a href="#" className="premium-link footer-link">
                     Facebook
                   </a>
                 </>
@@ -113,12 +109,12 @@ function Footer() {
 
 export function SiteLayout({ children }: { children: ReactNode }) {
   const { current } = usePlayer();
+  const bottomPadding = current ? "pb-28" : "pb-10";
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className={current ? "flex-1 pb-40" : "flex-1 pb-10"}>{children}</main>
+      <main className={`flex-1 ${bottomPadding}`}>{children}</main>
       <Footer />
-      <PlayerBar />
       <BeatAssistant />
     </div>
   );

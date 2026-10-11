@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>Dany Beats</title>
+  <rect width="64" height="64" rx="16" fill="#ff7518"/>
+  <path d="M18 17h12c10 0 17 6 17 15s-7 15-17 15H18V17Zm11 23c5 0 8-3 8-8s-3-8-8-8h-3v16h3Z" fill="#101010"/>
+  <path d="M42 17h5v30h-5z" fill="#101010"/>
+</svg>

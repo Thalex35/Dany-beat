@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Pause, Pencil, Play, Plus, Trash2, Upload } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Cover } from "@/components/site/Cover";
@@ -15,12 +15,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge, EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { BEAT_COLUMNS, formatPrice, slugify, type Beat, type License } from "@/lib/beats";
 import { fileExtension } from "@/lib/media";
-import { usePlayer } from "@/lib/player";
+import { playerTrackFromBeat, usePlayer } from "@/lib/player";
+import { getYoutubeVideoId } from "@/lib/youtube";
 
 export const Route = createFileRoute("/_authenticated/admin/beats")({
   component: AdminBeats,
@@ -43,6 +45,8 @@ type FormState = {
   cover_path: string | null;
   preview_path: string | null;
   master_path: string | null;
+  media_source: "upload" | "youtube";
+  youtube_url: string;
 };
 
 const blankForm: FormState = {
@@ -62,6 +66,8 @@ const blankForm: FormState = {
   cover_path: null,
   preview_path: null,
   master_path: null,
+  media_source: "upload",
+  youtube_url: "",
 };
 
 function toForm(beat: Beat): FormState {
@@ -82,6 +88,8 @@ function toForm(beat: Beat): FormState {
     cover_path: beat.cover_path,
     preview_path: beat.preview_path,
     master_path: beat.master_path,
+    media_source: beat.media_source ?? "upload",
+    youtube_url: beat.youtube_url ?? "",
   };
 }
 
@@ -104,7 +112,17 @@ function AdminBeats() {
   const [selectedBeat, setSelectedBeat] = useState<Beat | null>(null);
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [formScrollRequest, setFormScrollRequest] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
   const { current, playing, toggle } = usePlayer();
+
+  useEffect(() => {
+    if (!form?.id) return;
+    const frame = window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [form?.id, formScrollRequest]);
 
   const beats = useQuery({
     queryKey: ["admin-beats"],
@@ -129,6 +147,13 @@ function AdminBeats() {
 
   const save = useMutation({
     mutationFn: async (state: FormState) => {
+      const youtubeVideoId = getYoutubeVideoId(state.youtube_url.trim());
+      if (state.youtube_url.trim() && !youtubeVideoId) {
+        throw new Error("L'URL YouTube n'est pas valide.");
+      }
+      if (state.media_source === "youtube" && !youtubeVideoId) {
+        throw new Error("Ajoutez une URL YouTube valide pour utiliser cette source.");
+      }
       const payload = {
         title: state.title.trim(),
         slug: (state.slug.trim() || slugify(state.title)) as string,
@@ -148,6 +173,8 @@ function AdminBeats() {
         cover_path: state.cover_path,
         preview_path: state.preview_path,
         master_path: state.master_path,
+        media_source: state.media_source,
+        youtube_url: state.youtube_url.trim() || null,
         published_at: state.status === "published" ? new Date().toISOString() : null,
       };
       if (state.id) {
@@ -234,7 +261,8 @@ function AdminBeats() {
 
       {form ? (
         <form
-          className="admin-editor-panel rounded-3xl p-6"
+          ref={formRef}
+          className="admin-editor-panel scroll-mt-24 rounded-3xl p-6"
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate(form);
@@ -328,6 +356,64 @@ function AdminBeats() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </Field>
+            <Field
+              label="Source de l'extrait"
+              hint="Les anciens beats restent en lecture audio hébergée sur Supabase."
+            >
+              <RadioGroup
+                value={form.media_source}
+                onValueChange={(value) =>
+                  setForm({ ...form, media_source: value as FormState["media_source"] })
+                }
+                aria-label="Source de l'extrait"
+                className="flex w-fit rounded-xl bg-background p-1 ring-1 ring-border focus-within:ring-2 focus-within:ring-ring"
+              >
+                <label
+                  className={`cursor-pointer rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                    form.media_source === "upload"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <RadioGroupItem value="upload" className="sr-only" />
+                  Fichier audio
+                </label>
+                <label
+                  className={`cursor-pointer rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                    form.media_source === "youtube"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <RadioGroupItem value="youtube" className="sr-only" />
+                  YouTube
+                </label>
+              </RadioGroup>
+            </Field>
+            <Field
+              label="URL YouTube"
+              htmlFor="youtube_url"
+              hint={
+                form.media_source === "youtube"
+                  ? "Requis. La miniature et le lecteur seront chargés depuis YouTube."
+                  : "Lien facultatif vers la vidéo, affiché sur la fiche publique."
+              }
+            >
+              <Input
+                id="youtube_url"
+                type="url"
+                required={form.media_source === "youtube"}
+                value={form.youtube_url}
+                onChange={(e) => setForm({ ...form, youtube_url: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+            </Field>
+            {form.media_source === "youtube" ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Ce beat utilise le lecteur visible de YouTube. Aucune pochette ou preview audio
+                n'est chargée depuis Supabase.
+              </p>
+            ) : null}
           </div>
 
           <fieldset className="mt-8">
@@ -430,7 +516,9 @@ function AdminBeats() {
                     hint: "Privé, jamais public",
                   },
                 ] as const
-              ).map((slot) => (
+              )
+                .filter((slot) => form.media_source === "upload" || slot.bucket === "masters")
+                .map((slot) => (
                 <div key={slot.bucket} className="rounded-2xl bg-background p-4 ring-1 ring-border">
                   <p className="text-sm font-medium">{slot.label}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{slot.hint}</p>
@@ -558,7 +646,12 @@ function AdminBeats() {
                 role="button"
                 tabIndex={0}
               >
-                <Cover path={beat.cover_path} alt="" className="size-14 rounded-xl" />
+                <Cover
+                  path={beat.media_source === "youtube" ? null : beat.cover_path}
+                  alt=""
+                  className="size-14 rounded-xl"
+                  youtubeUrl={beat.media_source === "youtube" ? beat.youtube_url : null}
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{beat.title}</p>
                   <p className="truncate text-xs text-muted-foreground">
@@ -568,6 +661,9 @@ function AdminBeats() {
                 <Badge tone={beat.status === "published" ? "success" : "neutral"}>
                   {beat.status === "published" ? "publié" : "brouillon"}
                 </Badge>
+                <Badge tone="neutral">
+                  {beat.media_source === "youtube" ? "YouTube" : "Fichier"}
+                </Badge>
                 {beat.featured ? <Badge tone="accent">à la une</Badge> : null}
                 <Button
                   variant="ghost"
@@ -576,6 +672,7 @@ function AdminBeats() {
                   onClick={(event) => {
                     event.stopPropagation();
                     setForm(toForm(beat));
+                    setFormScrollRequest((request) => request + 1);
                   }}
                 >
                   <Pencil />
@@ -616,30 +713,28 @@ function AdminBeats() {
             <div className="grid gap-7 pt-3 md:grid-cols-[15rem_1fr]">
               <div>
                 <Cover
-                  path={selectedBeat.cover_path}
+                  path={selectedBeat.media_source === "youtube" ? null : selectedBeat.cover_path}
                   alt={`Pochette de ${selectedBeat.title}`}
-                  className="aspect-square w-full rounded-2xl"
+                  className={`w-full rounded-2xl ${selectedBeat.media_source === "youtube" ? "aspect-video" : "aspect-square"}`}
+                  youtubeUrl={selectedBeat.media_source === "youtube" ? selectedBeat.youtube_url : null}
                 />
                 <Button
                   block
                   className="mt-4"
-                  onClick={() =>
-                    toggle({
-                      id: selectedBeat.id,
-                      title: selectedBeat.title,
-                      slug: selectedBeat.slug,
-                      bpm: selectedBeat.bpm,
-                      coverPath: selectedBeat.cover_path,
-                      previewPath: selectedBeat.preview_path,
-                    })
+                  onClick={() => toggle(playerTrackFromBeat(selectedBeat))}
+                  disabled={
+                    selectedBeat.media_source === "youtube"
+                      ? !selectedBeat.youtube_url
+                      : !selectedBeat.preview_path
                   }
-                  disabled={!selectedBeat.preview_path}
                 >
                   {current?.id === selectedBeat.id && playing ? <Pause /> : <Play />}
                   {current?.id === selectedBeat.id && playing ? "Pause" : "Écouter / rejouer"}
                 </Button>
-                {!selectedBeat.preview_path ? (
-                  <p className="mt-2 text-xs text-muted-foreground">Aucun extrait audio importé.</p>
+                {selectedBeat.media_source === "upload" && !selectedBeat.preview_path ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Aucun extrait audio importé.
+                  </p>
                 ) : null}
               </div>
               <div>

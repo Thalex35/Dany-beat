@@ -1,10 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, Ear, MessageCircle, Pause, Play } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  Download,
+  Ear,
+  ExternalLink,
+  Facebook,
+  Instagram,
+  MessageCircle,
+  Pause,
+  Play,
+  Share2,
+  RotateCcw,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
-import { CartButton } from "@/components/site/CartButton";
 import { Comments } from "@/components/site/Comments";
+import { CartButton } from "@/components/site/BeatCard";
 import { Cover } from "@/components/site/Cover";
 import { LikeButton } from "@/components/site/LikeButton";
 import { SiteLayout } from "@/components/site/SiteLayout";
@@ -13,11 +28,19 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { supabase } from "@/integrations/supabase/client";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
-import { BEAT_COLUMNS, beatStatsQuery, formatCount, formatPrice, type Beat } from "@/lib/beats";
-import { usePlayer } from "@/lib/player";
-import { useSignedUrl } from "@/lib/media";
-import { startPurchase } from "@/lib/purchase";
+import {
+  BEAT_COLUMNS,
+  beatStatsQuery,
+  formatCount,
+  formatPrice,
+  publishedPlaybackQueueQuery,
+  type Beat,
+} from "@/lib/beats";
+import { playerTrackFromBeat, usePlayer } from "@/lib/player";
+import { startPurchase } from "@/lib/contact";
+import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
 import { useSettings } from "@/lib/settings";
+import { PUBLIC_CATALOGUE_CACHE_MAX_AGE } from "@/lib/catalogue-cache";
 
 export const Route = createFileRoute("/beats_/$slug")({
   head: ({ params }) => {
@@ -47,11 +70,14 @@ function BeatDetailPage() {
   const { slug } = Route.useParams();
   const { profile } = useAuth();
   const { data: settings } = useSettings();
-  const { current, playing, toggle } = usePlayer();
+  const { current, playing, finished, toggle, play } = usePlayer();
   const [licenseIndex, setLicenseIndex] = useState(0);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const beatQuery = useQuery({
     queryKey: ["beat", slug],
+    staleTime: Infinity,
+    gcTime: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
     queryFn: async (): Promise<Beat | null> => {
       const { data, error } = await supabase
         .from("beats")
@@ -65,7 +91,9 @@ function BeatDetailPage() {
   });
   const stats = useQuery(beatStatsQuery(beatQuery.data?.id ? [beatQuery.data.id] : []));
   const beat = beatQuery.data ?? null;
-  const previewUrl = useSignedUrl("previews", beat?.preview_path).data;
+  const isYoutube = beat?.media_source === "youtube";
+  const playbackQueue = useQuery(publishedPlaybackQueueQuery);
+  const previewUrl = useSignedUrl("previews", isYoutube ? null : beat?.preview_path).data;
 
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
@@ -120,10 +148,48 @@ function BeatDetailPage() {
 
   const s = stats.data?.[beat.id];
   const licenses = Array.isArray(beat.licenses) ? beat.licenses : [];
-  const selected = licenses[licenseIndex];
+  const selectedLicense = licenses[licenseIndex];
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
   const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
+
+  function shareUrl() {
+    return typeof window === "undefined" ? "" : window.location.href;
+  }
+
+  function shareOnWhatsApp() {
+    const text = `Écoute le beat « ${beat.title} » sur DANY BEATS : ${shareUrl()}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  }
+
+  function shareOnFacebook() {
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl())}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
+  async function shareOnInstagram() {
+    try {
+      await navigator.clipboard.writeText(shareUrl());
+      toast.success("Lien copié. Collez-le dans votre story ou message Instagram.");
+    } catch {
+      toast.error("Le lien n'a pas pu être copié.");
+    }
+    window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+  }
+
+  async function copyBeatLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl());
+      setLinkCopied(true);
+      toast.success("Lien du beat copié.");
+      window.setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      toast.error("Le lien n'a pas pu être copié.");
+    }
+  }
 
   const facts = [
     { label: "BPM", value: beat.bpm ? String(beat.bpm) : "—" },
@@ -146,27 +212,35 @@ function BeatDetailPage() {
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,420px)_1fr] lg:gap-16">
           <div>
             <Cover
-              path={beat.cover_path}
+              path={isYoutube ? null : beat.cover_path}
               alt={`Pochette de ${beat.title}`}
-              className="aspect-square w-full rounded-3xl ring-1 ring-border"
+              className={`w-full rounded-3xl ring-1 ring-border ${isYoutube ? "aspect-video" : "aspect-square"}`}
               sizes="(min-width: 1024px) 420px, 100vw"
+              youtubeUrl={isYoutube ? beat.youtube_url : null}
             />
-            <div className="mt-5 flex items-center gap-4">
+            <div className="mt-5 flex flex-wrap items-center gap-3 sm:gap-4">
               <Button
-                size="lg"
-                onClick={() =>
-                  toggle({
-                    id: beat.id,
-                    title: beat.title,
-                    slug: beat.slug,
-                    bpm: beat.bpm,
-                    coverPath: beat.cover_path,
-                    previewPath: beat.preview_path,
-                  })
-                }
+                size="md"
+                disabled={isYoutube ? !beat.youtube_url : !beat.preview_path}
+                onClick={() => {
+                  if (isCurrent) {
+                    toggle();
+                    return;
+                  }
+                  play(
+                    playerTrackFromBeat(beat),
+                    playbackQueue.data?.map(playerTrackFromBeat) ?? [playerTrackFromBeat(beat)],
+                  );
+                }}
               >
-                {isPlaying ? <Pause /> : <Play />}
-                {isPlaying ? "Mettre en pause" : "Écouter l'extrait"}
+                {isPlaying ? <Pause /> : finished && isCurrent ? <RotateCcw /> : <Play />}
+                {isPlaying
+                  ? "Mettre en pause"
+                  : finished && isCurrent
+                    ? "Rejouer"
+                    : isYoutube
+                      ? "Lire sur YouTube"
+                      : "Écouter l'extrait"}
               </Button>
               {s ? (
                 <LikeButton beatId={beat.id} count={s.likes} />
@@ -175,16 +249,23 @@ function BeatDetailPage() {
               )}
               <CartButton
                 beatId={beat.id}
-                licenseId={selected?.id}
-                licenseName={selected?.name}
-                licensePrice={selected?.price}
+                licenseId={selectedLicense?.id}
+                licenseName={selectedLicense?.name}
+                licensePrice={selectedLicense?.price}
               />
               {previewUrl ? (
-                <Button asChild variant="outline" size="lg">
-                  <a href={previewUrl} download={`${beat.slug}-preview.mp3`}>
-                    <Download />
-                    Télécharger
-                  </a>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="md"
+                  onClick={() =>
+                    void downloadFile(previewUrl, downloadName(beat.slug, beat.preview_path)).catch(
+                      () => toast.error("L'extrait n'a pas pu être téléchargé."),
+                    )
+                  }
+                >
+                  <Download />
+                  Télécharger
                 </Button>
               ) : null}
               <span
@@ -203,6 +284,96 @@ function BeatDetailPage() {
               {beat.title}
             </h1>
             <p className="mt-3 font-display text-2xl text-primary">{formatPrice(beat.price)}</p>
+            {beat.youtube_url ? (
+              <a
+                href={beat.youtube_url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+              >
+                <ExternalLink className="size-4" aria-hidden="true" />
+                Voir le beat sur YouTube
+              </a>
+            ) : null}
+            <div className="mt-6">
+              <p className="flex items-center gap-2 text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
+                <Share2 className="size-3.5" aria-hidden="true" />
+                Partager ce beat
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="whatsapp"
+                  size="sm"
+                  onClick={shareOnWhatsApp}
+                  title="Partager sur WhatsApp"
+                >
+                  <MessageCircle />
+                  WhatsApp
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={shareOnFacebook}
+                  title="Partager sur Facebook"
+                >
+                  <Facebook />
+                  Facebook
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void shareOnInstagram()}
+                  title="Copier le lien et ouvrir Instagram"
+                >
+                  <Instagram />
+                  Instagram
+                </Button>
+              </div>
+              <div className="mt-3 flex w-full max-w-xl items-center gap-2">
+                <input
+                  type="url"
+                  readOnly
+                  value={shareUrl()}
+                  aria-label="Lien public du beat"
+                  className="h-10 min-w-0 flex-1 rounded-full border border-border bg-background px-3 text-xs text-muted-foreground outline-none sm:px-4"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => void copyBeatLink()}
+                  aria-label={linkCopied ? "Lien copié" : "Copier le lien du beat"}
+                  title={linkCopied ? "Lien copié" : "Copier le lien"}
+                >
+                  {linkCopied ? <Check /> : <Copy />}
+                </Button>
+              </div>
+            </div>
+            <Button
+              variant="whatsapp"
+              size="lg"
+              className="mt-6"
+              disabled={!whatsappReady}
+              title={whatsappReady ? undefined : "WhatsApp non configuré"}
+              onClick={() => {
+                if (!settings?.whatsapp_number) return;
+                startPurchase({
+                  beatId: beat.id,
+                  beatTitle: beat.title,
+                  licenseName: selectedLicense?.name,
+                  price: selectedLicense?.price ?? beat.price,
+                  producerName: settings.producer_name,
+                  buyerName: profile?.display_name,
+                  whatsappNumber: settings.whatsapp_number,
+                });
+              }}
+            >
+              <MessageCircle />
+              Demander l'achat par WhatsApp
+            </Button>
 
             {beat.description ? (
               <p className="mt-6 max-w-xl leading-relaxed whitespace-pre-line text-muted-foreground">
@@ -272,34 +443,6 @@ function BeatDetailPage() {
                 </div>
               </fieldset>
             ) : null}
-
-            <div className="mt-10 rounded-3xl bg-surface p-6 ring-1 ring-border">
-              <p className="text-sm text-muted-foreground">
-                L'achat se fait directement avec le producteur. Envoyez votre demande et vous
-                recevrez aussitôt les détails de la licence, les stems et les moyens de paiement.
-              </p>
-              <Button
-                variant="whatsapp"
-                size="lg"
-                block
-                className="mt-5"
-                disabled={!whatsappReady}
-                onClick={() =>
-                  void startPurchase({
-                    beatId: beat.id,
-                    beatTitle: beat.title,
-                    licenseName: selected?.name ?? null,
-                    price: selected?.price ?? beat.price,
-                    producerName: settings?.producer_name ?? "Dany Beats",
-                    buyerName: profile?.display_name ?? null,
-                    whatsappNumber: settings?.whatsapp_number ?? "",
-                  })
-                }
-              >
-                <MessageCircle />
-                {whatsappReady ? "Acheter via WhatsApp" : "WhatsApp non configuré"}
-              </Button>
-            </div>
           </div>
         </div>
 

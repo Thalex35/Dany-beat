@@ -23,7 +23,7 @@ export function LikeButton({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: liked } = useQuery({
+  const { data: likeId = null } = useQuery({
     queryKey: ["like", beatId, user?.id],
     enabled: !!user,
     queryFn: async () => {
@@ -33,7 +33,7 @@ export function LikeButton({
         .eq("beat_id", beatId)
         .eq("user_id", user!.id)
         .maybeSingle();
-      return !!data;
+      return data?.id ?? null;
     },
   });
 
@@ -47,10 +47,11 @@ export function LikeButton({
         if (error && error.code !== "23505") throw error;
         void track("beat_like", { beatId });
       } else {
+        if (!likeId) return nextLiked;
         const { error } = await supabase
           .from("likes")
           .delete()
-          .eq("beat_id", beatId)
+          .eq("id", likeId)
           .eq("user_id", user.id);
         if (error) throw error;
         void track("beat_unlike", { beatId });
@@ -60,44 +61,51 @@ export function LikeButton({
     onMutate: async (nextLiked) => {
       await queryClient.cancelQueries({ queryKey: ["like", beatId, user?.id] });
       const previous = queryClient.getQueryData(["like", beatId, user?.id]);
-      const previousStats = queryClient.getQueryData<Record<string, { likes: number }>>([
-        "beat-stats",
-      ]);
+      const previousStats = queryClient.getQueriesData<Record<string, { likes: number }>>({
+        queryKey: ["beat-stats"],
+      });
 
       queryClient.setQueryData(["like", beatId, user?.id], nextLiked);
 
-      if (previousStats?.[beatId]) {
-        queryClient.setQueryData(["beat-stats"], {
-          ...previousStats,
+      for (const [queryKey, stats] of previousStats) {
+        if (!stats?.[beatId]) continue;
+        queryClient.setQueryData(queryKey, {
+          ...stats,
           [beatId]: {
-            ...previousStats[beatId],
-            likes: Math.max(0, previousStats[beatId].likes + (nextLiked ? 1 : -1)),
+            ...stats[beatId],
+            likes: Math.max(0, stats[beatId].likes + (nextLiked ? 1 : -1)),
           },
         });
       }
 
       return { previous, previousStats };
     },
-    onError: (_error, _vars, context) => {
+    onError: (error, _vars, context) => {
       queryClient.setQueryData(["like", beatId, user?.id], context?.previous);
-      if (context?.previousStats) {
-        queryClient.setQueryData(["beat-stats"], context.previousStats);
+      for (const [queryKey, stats] of context?.previousStats ?? []) {
+        queryClient.setQueryData(queryKey, stats);
       }
-      toast.error("Votre favori n'a pas pu être enregistré. Réessayez.");
+      const message = error instanceof Error ? error.message : "Erreur Supabase inconnue";
+      console.error("Like toggle failed", error);
+      toast.error(`Le favori n'a pas pu être modifié : ${message}`);
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["like", beatId, user?.id] });
       queryClient.invalidateQueries({ queryKey: ["beat-stats"] });
       queryClient.invalidateQueries({ queryKey: ["liked-beats"] });
     },
   });
 
-  const optimisticCount = (count ?? 0) + (liked === true ? 0 : mutation.isPending && !liked ? 0 : 0);
+  const liked = !!likeId;
+  const optimisticLiked = mutation.isPending ? mutation.variables : liked;
+  const optimisticCount = (count ?? 0) + (optimisticLiked === liked ? 0 : optimisticLiked ? 1 : -1);
 
   return (
     <button
       type="button"
-      aria-pressed={!!liked}
-      aria-label={liked ? "Retirer ce beat des favoris" : "Ajouter ce beat aux favoris"}
+      disabled={mutation.isPending}
+      aria-pressed={optimisticLiked}
+      aria-label={optimisticLiked ? "Retirer ce beat des favoris" : "Ajouter ce beat aux favoris"}
       onClick={() => {
         if (!user) {
           toast("Connectez-vous pour ajouter des beats en favoris");
@@ -110,12 +118,12 @@ export function LikeButton({
         mutation.mutate(!liked);
       }}
       className={cn(
-        "inline-flex items-center gap-1.5 text-[11px] tracking-wide text-muted-foreground transition-colors hover:text-foreground",
-        liked && "text-primary hover:text-primary",
+        "button-contour inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] tracking-wide text-muted-foreground transition-colors hover:text-foreground",
+        optimisticLiked && "text-primary hover:text-primary",
         className,
       )}
     >
-      <Heart className={cn("size-4", liked && "fill-current")} aria-hidden="true" />
+      <Heart className={cn("size-4", optimisticLiked && "fill-current")} aria-hidden="true" />
       <span className="tabular-nums">{formatCount(optimisticCount)}</span>
     </button>
   );

@@ -22,6 +22,7 @@ import { Route as BeatsSlugRouteImport } from './routes/beats_.$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminBeatsRouteImport } from './routes/_authenticated/admin.beats'
 import { Route as AuthenticatedAdminCartRouteImport } from './routes/_authenticated/admin.cart'
+import { Route as AuthenticatedAdminCommentsRouteImport } from './routes/_authenticated/admin/comments'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 
@@ -89,6 +90,12 @@ const AuthenticatedAdminCartRoute = AuthenticatedAdminCartRouteImport.update({
   path: '/cart',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminCommentsRoute =
+  AuthenticatedAdminCommentsRouteImport.update({
+    id: '/comments',
+    path: '/comments',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminSettingsRoute =
   AuthenticatedAdminSettingsRouteImport.update({
     id: '/settings',
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/beats/$slug': typeof BeatsSlugRoute
   '/admin/beats': typeof AuthenticatedAdminBeatsRoute
   '/admin/cart': typeof AuthenticatedAdminCartRoute
+  '/admin/comments': typeof AuthenticatedAdminCommentsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -128,6 +136,7 @@ export interface FileRoutesByTo {
   '/beats/$slug': typeof BeatsSlugRoute
   '/admin/beats': typeof AuthenticatedAdminBeatsRoute
   '/admin/cart': typeof AuthenticatedAdminCartRoute
+  '/admin/comments': typeof AuthenticatedAdminCommentsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -146,6 +155,7 @@ export interface FileRoutesById {
   '/beats_/$slug': typeof BeatsSlugRoute
   '/_authenticated/admin/beats': typeof AuthenticatedAdminBeatsRoute
   '/_authenticated/admin/cart': typeof AuthenticatedAdminCartRoute
+  '/_authenticated/admin/comments': typeof AuthenticatedAdminCommentsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/beats/$slug'
     | '/admin/beats'
     | '/admin/cart'
+    | '/admin/comments'
     | '/admin/settings'
     | '/admin/users'
     | '/admin/'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/beats/$slug'
     | '/admin/beats'
     | '/admin/cart'
+    | '/admin/comments'
     | '/admin/settings'
     | '/admin/users'
     | '/admin'
@@ -196,6 +208,7 @@ export interface FileRouteTypes {
     | '/beats_/$slug'
     | '/_authenticated/admin/beats'
     | '/_authenticated/admin/cart'
+    | '/_authenticated/admin/comments'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/users'
     | '/_authenticated/admin/'
@@ -304,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCartRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/comments': {
+      id: '/_authenticated/admin/comments'
+      path: '/comments'
+      fullPath: '/admin/comments'
+      preLoaderRoute: typeof AuthenticatedAdminCommentsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/settings': {
       id: '/_authenticated/admin/settings'
       path: '/settings'
@@ -324,6 +344,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminBeatsRoute: typeof AuthenticatedAdminBeatsRoute
   AuthenticatedAdminCartRoute: typeof AuthenticatedAdminCartRoute
+  AuthenticatedAdminCommentsRoute: typeof AuthenticatedAdminCommentsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -332,6 +353,7 @@ interface AuthenticatedAdminRouteChildren {
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminBeatsRoute: AuthenticatedAdminBeatsRoute,
   AuthenticatedAdminCartRoute: AuthenticatedAdminCartRoute,
+  AuthenticatedAdminCommentsRoute: AuthenticatedAdminCommentsRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

@@ -1,14 +1,47 @@
 import { Link } from "@tanstack/react-router";
-import { Download, Ear, Mail, Pause, Play, RotateCcw } from "lucide-react";
+import { Download, Ear, Pause, Play, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
-import { CartButton } from "@/components/site/CartButton";
 import { Cover } from "@/components/site/Cover";
 import { LikeButton } from "@/components/site/LikeButton";
-import { useSettings } from "@/lib/settings";
-import { openEmail } from "@/lib/contact";
 import { formatCount, formatPrice, type Beat, type BeatStats } from "@/lib/beats";
-import { useSignedUrl } from "@/lib/media";
-import { usePlayer } from "@/lib/player";
+import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
+import { playerTrackFromBeat, usePlayer } from "@/lib/player";
+import { useAuth } from "@/lib/auth";
+import { useCartIds, useToggleCart } from "@/lib/realtime";
+import { safeAuthRedirect } from "@/lib/validation";
+import { useNavigate } from "@tanstack/react-router";
+import { ShoppingCart } from "lucide-react";
+
+export function CartButton({ beatId, licenseId, licenseName, licensePrice }: { beatId: string; licenseId?: string; licenseName?: string; licensePrice?: number }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { data: ids } = useCartIds();
+  const toggle = useToggleCart();
+  const inCart = !!ids?.includes(beatId);
+  return (
+    <button
+      type="button"
+      aria-label={inCart ? "Retirer ce beat du panier" : "Ajouter ce beat au panier"}
+      aria-pressed={inCart}
+      onClick={() =>
+        user
+          ? toggle.mutate({ beatId, inCart, licenseId, licenseName, licensePrice })
+          : navigate({
+              to: "/auth",
+              search: { redirect: safeAuthRedirect(window.location.pathname) },
+            })
+      }
+      className={`button-contour grid size-10 shrink-0 place-items-center rounded-full p-2 transition-all hover:scale-105 ${
+        inCart
+          ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/20"
+          : "bg-surface text-muted-foreground ring-1 ring-border hover:bg-surface-2 hover:text-foreground"
+      }`}
+    >
+      <ShoppingCart className="size-4" aria-hidden="true" />
+    </button>
+  );
+}
 
 export function BeatCard({
   beat,
@@ -20,13 +53,18 @@ export function BeatCard({
   queue?: Beat[];
 }) {
   const { current, playing, finished, toggle, play } = usePlayer();
-  const { data: settings } = useSettings();
-  const { data: previewUrl } = useSignedUrl("previews", beat.preview_path);
+  const isYoutube = beat.media_source === "youtube";
+  const track = playerTrackFromBeat(beat);
+  const playerQueue = queue?.map(playerTrackFromBeat);
+  const { data: previewUrl } = useSignedUrl(
+    "previews",
+    isYoutube ? null : beat.preview_path,
+  );
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
 
   return (
-    <article className="group flex min-w-0 flex-col gap-4 overflow-hidden">
+    <article className="beat-card group flex min-w-0 flex-col gap-4">
       <div className="public-beat-art relative aspect-video w-full overflow-hidden rounded-2xl ring-1 ring-border">
         <Link
           to="/beats/$slug"
@@ -35,9 +73,10 @@ export function BeatCard({
           className="block h-full w-full"
         >
           <Cover
-            path={beat.cover_path}
+            path={isYoutube ? null : beat.cover_path}
             alt={`Pochette de ${beat.title}`}
             className="h-full w-full"
+            youtubeUrl={isYoutube ? beat.youtube_url : null}
           />
         </Link>
         {beat.bpm ? (
@@ -55,7 +94,7 @@ export function BeatCard({
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-base font-medium">
-            <Link to="/beats/$slug" params={{ slug: beat.slug }} className="hover:text-primary">
+            <Link to="/beats/$slug" params={{ slug: beat.slug }} className="premium-link hover:text-primary">
               {beat.title}
             </Link>
           </h3>
@@ -72,38 +111,19 @@ export function BeatCard({
         <button
           type="button"
           onClick={() => {
-            const track = {
-              id: beat.id,
-              title: beat.title,
-              slug: beat.slug,
-              bpm: beat.bpm,
-              coverPath: beat.cover_path,
-              previewPath: beat.preview_path,
-            };
-            if (queue) {
-              play(
-                track,
-                queue.map((item) => ({
-                  id: item.id,
-                  title: item.title,
-                  slug: item.slug,
-                  bpm: item.bpm,
-                  coverPath: item.cover_path,
-                  previewPath: item.preview_path,
-                })),
-              );
-            } else {
-              toggle(track);
-            }
+            if (isCurrent) toggle();
+            else play(track, playerQueue);
           }}
           aria-label={
             finished && isCurrent
               ? `Rejouer ${beat.title}`
               : isPlaying
                 ? `Mettre ${beat.title} en pause`
-                : `Écouter ${beat.title}`
+                : isYoutube
+                  ? `Lire ${beat.title} sur YouTube`
+                  : `Écouter ${beat.title}`
           }
-          className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
+          className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
         >
           {finished && isCurrent ? (
             <RotateCcw className="size-4" />
@@ -125,34 +145,21 @@ export function BeatCard({
           <LikeButton beatId={beat.id} count={stats?.likes} />
         </div>
         {previewUrl ? (
-          <a
-            href={previewUrl}
-            download={`${beat.slug}-preview.mp3`}
-            aria-label={`Télécharger l'extrait de ${beat.title}`}
-            title="Télécharger l'extrait"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Download className="size-4" aria-hidden="true" />
-          </a>
-        ) : null}
-        {settings?.contact_email ? (
           <button
             type="button"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-            aria-label={`Envoyer un e-mail à propos de ${beat.title}`}
-            title="Envoyer par e-mail"
+            aria-label={`Télécharger l'extrait de ${beat.title}`}
+            title="Télécharger l'extrait"
+            className="button-contour grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
             onClick={() =>
-              openEmail({
-                to: settings.contact_email,
-                subject: `Demande de licence : ${beat.title}`,
-                body: `Bonjour,\n\nJe suis intéressé par le beat « ${beat.title} ».\n\nPouvez-vous me renseigner sur les licences disponibles ?\n\nMerci.`,
-              })
+              void downloadFile(previewUrl, downloadName(beat.slug, beat.preview_path)).catch(() =>
+                toast.error("L'extrait n'a pas pu être téléchargé."),
+              )
             }
           >
-            <Mail className="size-4" aria-hidden="true" />
+            <Download className="size-4" aria-hidden="true" />
           </button>
         ) : null}
-        <CartButton beatId={beat.id} className="ml-auto" />
+        <CartButton beatId={beat.id} />
       </div>
     </article>
   );

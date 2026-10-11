@@ -114,11 +114,13 @@ export function Comments({ beatId }: { beatId: string }) {
           }}
         >
           <Textarea
+            id={`comment-message-${beatId}`}
+            name="message"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             rows={3}
             maxLength={COMMENT_MAX_LENGTH}
-            aria-label="Écrire un commentaire"
+            aria-label="Message du commentaire"
             placeholder="Partagez votre avis sur ce beat…"
           />
           <div className="mt-3 flex items-center justify-between">
@@ -211,6 +213,8 @@ export function Comments({ beatId }: { beatId: string }) {
                     }}
                   >
                     <Textarea
+                      id={`comment-message-${c.id}`}
+                      name="message"
                       value={replyValue}
                       onChange={(e) => setReplyValue(e.target.value)}
                       rows={2}

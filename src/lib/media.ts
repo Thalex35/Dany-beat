@@ -29,3 +29,21 @@ export function fileExtension(name: string) {
   const parts = name.split(".");
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "";
 }
+
+export function downloadName(slug: string, path: string | null | undefined) {
+  const extension = path ? fileExtension(path) : "mp3";
+  return `${slug}-preview.${extension || "mp3"}`;
+}
+
+export async function downloadFile(url: string, filename: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Download failed");
+  const objectUrl = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}

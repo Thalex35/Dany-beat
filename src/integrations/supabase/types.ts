@@ -55,6 +55,7 @@ export type Database = {
           id: string;
           licenses: Json;
           master_path: string | null;
+          media_source: string;
           mood: string | null;
           preview_path: string | null;
           price: number;
@@ -65,6 +66,7 @@ export type Database = {
           tags: string[];
           title: string;
           updated_at: string;
+          youtube_url: string | null;
         };
         Insert: {
           bpm?: number | null;
@@ -77,6 +79,7 @@ export type Database = {
           id?: string;
           licenses?: Json;
           master_path?: string | null;
+          media_source?: string;
           mood?: string | null;
           preview_path?: string | null;
           price?: number;
@@ -87,6 +90,7 @@ export type Database = {
           tags?: string[];
           title: string;
           updated_at?: string;
+          youtube_url?: string | null;
         };
         Update: {
           bpm?: number | null;
@@ -99,6 +103,7 @@ export type Database = {
           id?: string;
           licenses?: Json;
           master_path?: string | null;
+          media_source?: string;
           mood?: string | null;
           preview_path?: string | null;
           price?: number;
@@ -109,6 +114,7 @@ export type Database = {
           tags?: string[];
           title?: string;
           updated_at?: string;
+          youtube_url?: string | null;
         };
         Relationships: [];
       };
@@ -437,6 +443,7 @@ export type Database = {
           views: number;
         }[];
       };
+      public_catalogue_revision: { Args: never; Returns: string };
       claim_first_admin: { Args: never; Returns: boolean };
       has_role: {
         Args: {

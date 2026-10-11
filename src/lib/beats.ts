@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PUBLIC_CATALOGUE_CACHE_MAX_AGE } from "@/lib/catalogue-cache";
 
 export type License = { id: string; name: string; price: number; files: string; terms?: string };
 
@@ -17,6 +18,8 @@ export type Beat = {
   cover_path: string | null;
   preview_path: string | null;
   master_path: string | null;
+  media_source: "upload" | "youtube";
+  youtube_url: string | null;
   status: "draft" | "published";
   featured: boolean;
   created_at: string;
@@ -43,7 +46,7 @@ export type BeatFilterOptions = {
 };
 
 export const BEAT_COLUMNS =
-  "id, title, slug, description, genre, mood, bpm, song_key, price, licenses, tags, cover_path, preview_path, master_path, status, featured, created_at, published_at";
+  "id, title, slug, description, genre, mood, bpm, song_key, price, licenses, tags, cover_path, preview_path, master_path, media_source, youtube_url, status, featured, created_at, published_at";
 
 export function slugify(value: string) {
   return value
@@ -68,6 +71,8 @@ export const publishedBeatsQuery = (params: {
   sort: "newest" | "oldest" | "price-asc" | "price-desc" | "popular";
 }) => ({
   queryKey: ["beats", "published", params],
+  staleTime: Infinity,
+  gcTime: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
   queryFn: async (): Promise<PublishedBeatsPage> => {
     const from = params.page * params.pageSize;
     const to = from + params.pageSize - 1;
@@ -106,7 +111,8 @@ export const publishedBeatsQuery = (params: {
 
 export const beatFilterOptionsQuery = {
   queryKey: ["beat-filter-options"],
-  staleTime: 300_000,
+  staleTime: Infinity,
+  gcTime: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
   queryFn: async (): Promise<BeatFilterOptions[]> => {
     const { data, error } = await supabase
       .from("beats")
@@ -114,6 +120,43 @@ export const beatFilterOptionsQuery = {
       .eq("status", "published");
     if (error) throw error;
     return (data ?? []) as BeatFilterOptions[];
+  },
+};
+
+export const publishedPlaybackQueueQuery = {
+  queryKey: ["beats", "published-playback-queue"],
+  staleTime: 300_000,
+  queryFn: async (): Promise<
+    Pick<
+      Beat,
+      | "id"
+      | "title"
+      | "slug"
+      | "bpm"
+      | "cover_path"
+      | "preview_path"
+      | "media_source"
+      | "youtube_url"
+    >[]
+  > => {
+    const { data, error } = await supabase
+      .from("beats")
+      .select("id, title, slug, bpm, cover_path, preview_path, media_source, youtube_url")
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Pick<
+      Beat,
+      | "id"
+      | "title"
+      | "slug"
+      | "bpm"
+      | "cover_path"
+      | "preview_path"
+      | "media_source"
+      | "youtube_url"
+    >[];
   },
 };
 
