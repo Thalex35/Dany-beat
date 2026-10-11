@@ -16,6 +16,7 @@ import danyLogo from "../assets/danyLogo.png";
 import { AuthProvider } from "../lib/auth";
 import { PlayerProvider } from "../lib/player";
 import { PlayerBar } from "../components/site/PlayerBar";
+import { PwaInstallPrompt } from "../components/site/PwaInstallPrompt";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useRealtimeSync } from "../lib/realtime";
@@ -91,8 +92,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
       },
+      { name: "theme-color", content: "#101010" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Dany Beats" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { title: "Dany Beats — Instrumentales rap & trap premium" },
       {
         name: "description",
@@ -121,6 +127,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: danyLogo, type: "image/png" },
+      { rel: "manifest", href: "/manifest.json" },
+      { rel: "apple-touch-icon", href: "/icons/app-icon-192.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -187,6 +195,7 @@ function RootContent() {
         <Outlet />
         <PlayerBar />
         <Toaster position="top-center" />
+        <PwaInstallPrompt />
       </PlayerProvider>
     </AuthProvider>
   );

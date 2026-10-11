@@ -10,7 +10,7 @@ import {
 
 import { track } from "@/lib/analytics";
 import { signedUrl } from "@/lib/media";
-import { getYoutubeVideoId } from "@/lib/youtube";
+import { getYoutubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
 
 export type PlayerTrack = {
   id: string;
@@ -93,6 +93,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const youtubeControlsRef = useRef<YoutubeControls | null>(null);
   const loopRef = useRef(false);
   const playRef = useRef<(track: PlayerTrack) => void>(() => undefined);
+  const playRequestRef = useRef(0);
+  const mediaActionsRef = useRef({
+    play: () => {},
+    pause: () => {},
+    next: () => {},
+    previous: () => {},
+    seek: (_seconds: number) => {},
+  });
   const playingRef = useRef(playing);
   const volumeRef = useRef(volume);
   playingRef.current = playing;
@@ -122,6 +130,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setPlaying(false);
       setFinished(true);
     };
+    const onPlay = () => {
+      setPlaying(true);
+      setFinished(false);
+    };
+    const onPause = () => setPlaying(false);
     const onErr = () => {
       setError("Cet extrait n'a pas pu être chargé.");
       setPlaying(false);
@@ -129,12 +142,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     audio.addEventListener("timeupdate", onTime);
     audio.addEventListener("loadedmetadata", onMeta);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnd);
     audio.addEventListener("error", onErr);
     return () => {
       audio.pause();
       audio.removeEventListener("timeupdate", onTime);
       audio.removeEventListener("loadedmetadata", onMeta);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnd);
       audio.removeEventListener("error", onErr);
     };
@@ -192,6 +209,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async (next: PlayerTrack, queue?: PlayerTrack[]) => {
       const audio = audioRef.current;
       if (!audio) return;
+      const request = ++playRequestRef.current;
       if (queue) queueRef.current = queue;
       setError(null);
       setFinished(false);
@@ -232,7 +250,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           await audio.play();
           setPlaying(true);
         } catch {
-          setError("Playback was blocked by the browser.");
+          if (request === playRequestRef.current) {
+            setError("Playback was blocked by the browser.");
+          }
         }
         return;
       }
@@ -245,23 +265,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentRef.current = next;
       setProgress(0);
       setDuration(0);
-      const url = await signedUrl("previews", next.previewPath);
-      if (!url) {
-        setLoading(false);
-        setError("Audio file unavailable.");
-        return;
-      }
-      audio.src = url;
-      audio.load();
       try {
+        const url = await signedUrl("previews", next.previewPath);
+        if (request !== playRequestRef.current) return;
+        if (!url) {
+          setError("Audio file unavailable.");
+          return;
+        }
+        audio.src = url;
+        audio.load();
         await audio.play();
         setPlaying(true);
         // One play event per beat per browser session — no inflated stats.
         void track("beat_play", { beatId: next.id, once: true });
       } catch {
-        setError("Playback was blocked by the browser.");
+        if (request === playRequestRef.current) {
+          setError("Playback was blocked by the browser.");
+        }
       } finally {
-        setLoading(false);
+        if (request === playRequestRef.current) setLoading(false);
       }
     },
     [current],
@@ -303,6 +325,152 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   playRef.current = (track) => void play(track);
 
+  useEffect(() => {
+    mediaActionsRef.current = {
+      play: () => {
+        const track = currentRef.current;
+        if (!track) return;
+        if (track.mediaSource === "youtube") {
+          if (finished) {
+            youtubeControlsRef.current?.seek(0);
+            setProgress(0);
+            setFinished(false);
+          }
+          youtubeControlsRef.current?.play();
+          setPlaying(true);
+          setLoading(!youtubeControlsRef.current);
+        } else {
+          void playRef.current(track);
+        }
+      },
+      pause: () => {
+        if (currentRef.current?.mediaSource === "youtube") youtubeControlsRef.current?.pause();
+        else audioRef.current?.pause();
+        setPlaying(false);
+      },
+      next: () => {
+        const queue = queueRef.current;
+        const index = queue.findIndex((track) => track.id === currentRef.current?.id);
+        const next = queue[index + 1];
+        if (next) playRef.current(next);
+      },
+      previous: () => {
+        const track = currentRef.current;
+        if (!track) return;
+        if (progress > 3) {
+          if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
+          else if (audioRef.current) audioRef.current.currentTime = 0;
+          setProgress(0);
+          return;
+        }
+        const queue = queueRef.current;
+        const index = queue.findIndex((item) => item.id === track.id);
+        const previous = queue[index - 1];
+        if (previous) playRef.current(previous);
+        else {
+          if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
+          else if (audioRef.current) audioRef.current.currentTime = 0;
+          setProgress(0);
+        }
+      },
+      seek: (seconds) => {
+        if (currentRef.current?.mediaSource === "youtube")
+          youtubeControlsRef.current?.seek(seconds);
+        else if (audioRef.current) audioRef.current.currentTime = seconds;
+        setProgress(seconds);
+      },
+    };
+  }, [finished, progress]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    const session = navigator.mediaSession;
+    const actions: MediaSessionAction[] = ["play", "pause", "previoustrack", "nexttrack", "seekto"];
+    const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
+      play: () => mediaActionsRef.current.play(),
+      pause: () => mediaActionsRef.current.pause(),
+      previoustrack: () => mediaActionsRef.current.previous(),
+      nexttrack: () => mediaActionsRef.current.next(),
+      seekto: (details) => {
+        if (typeof details.seekTime === "number") mediaActionsRef.current.seek(details.seekTime);
+      },
+    };
+
+    for (const action of actions) {
+      try {
+        session.setActionHandler(action, handlers[action] ?? null);
+      } catch {
+        // Browsers can expose Media Session without supporting every action.
+      }
+    }
+    return () => {
+      for (const action of actions) {
+        try {
+          session.setActionHandler(action, null);
+        } catch {
+          // Unsupported actions do not need cleanup.
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    const session = navigator.mediaSession;
+    if (!current) {
+      session.metadata = null;
+      session.playbackState = "none";
+      return;
+    }
+
+    const fallbackArtwork = [
+      { src: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
+      { src: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
+    ];
+    const metadata = (artwork: MediaImage[]) =>
+      new MediaMetadata({
+        title: current.title,
+        artist: "Dany Beats",
+        album: current.bpm ? `${current.bpm} BPM · Extrait` : "Extrait",
+        artwork,
+      });
+    session.metadata = metadata(fallbackArtwork);
+
+    let cancelled = false;
+    const updateArtwork = async () => {
+      try {
+        const artworkUrl =
+          current.mediaSource === "youtube"
+            ? youtubeThumbnailUrl(current.youtubeUrl)
+            : await signedUrl("covers", current.coverPath);
+        if (!cancelled && artworkUrl) session.metadata = metadata([{ src: artworkUrl }]);
+      } catch (error) {
+        if (!cancelled) console.error("Impossible de charger la pochette Media Session.", error);
+      }
+    };
+    void updateArtwork();
+    return () => {
+      cancelled = true;
+    };
+  }, [current]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    const session = navigator.mediaSession;
+    session.playbackState = playing ? "playing" : current ? "paused" : "none";
+    if (duration > 0 && typeof session.setPositionState === "function") {
+      try {
+        session.setPositionState({
+          duration,
+          playbackRate: 1,
+          position: Math.min(progress, duration),
+        });
+      } catch {
+        // Ignore invalid or unsupported position state updates.
+      }
+    }
+  }, [current, duration, playing, progress]);
+
   const seek = useCallback((seconds: number) => {
     if (currentRef.current?.mediaSource === "youtube") {
       youtubeControlsRef.current?.seek(seconds);
@@ -328,6 +496,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const stop = useCallback(() => {
+    playRequestRef.current += 1;
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
