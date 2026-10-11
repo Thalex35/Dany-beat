@@ -94,6 +94,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loopRef = useRef(false);
   const playRef = useRef<(track: PlayerTrack) => void>(() => undefined);
   const playRequestRef = useRef(0);
+  const previewUrlsRef = useRef(new Map<string, { path: string; url: string; expiresAt: number }>());
   const endedRequestRef = useRef<number | null>(null);
   const youtubeEndHandledRef = useRef<string | null>(null);
   const mediaActionsRef = useRef({
@@ -229,6 +230,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!queueRef.current.some((track) => track.id === next.id)) {
         queueRef.current = queue ? [...queue, next] : [next];
       }
+      const queueIndex = queueRef.current.findIndex((track) => track.id === next.id);
+      const upcomingTrack = queueIndex >= 0 ? queueRef.current[queueIndex + 1] : undefined;
+      if (upcomingTrack?.mediaSource !== "youtube" && upcomingTrack?.previewPath) {
+        const cachedUpcoming = previewUrlsRef.current.get(upcomingTrack.id);
+        if (
+          cachedUpcoming?.path !== upcomingTrack.previewPath ||
+          cachedUpcoming.expiresAt <= Date.now()
+        ) {
+          void signedUrl("previews", upcomingTrack.previewPath).then((url) => {
+            if (url) {
+              previewUrlsRef.current.set(upcomingTrack.id, {
+                path: upcomingTrack.previewPath!,
+                url,
+                expiresAt: Date.now() + 55 * 60 * 1000,
+              });
+            }
+          });
+        }
+      }
       setError(null);
       setFinished(false);
 
@@ -285,12 +305,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setProgress(0);
       setDuration(0);
       try {
-        const url = await signedUrl("previews", next.previewPath);
+        const cachedPreview = previewUrlsRef.current.get(next.id);
+        const cachedUrl =
+          cachedPreview?.path === next.previewPath && cachedPreview.expiresAt > Date.now()
+            ? cachedPreview.url
+            : null;
+        const url = cachedUrl ?? (await signedUrl("previews", next.previewPath));
         if (request !== playRequestRef.current) return;
         if (!url) {
           setError("Audio file unavailable.");
           return;
         }
+        previewUrlsRef.current.set(next.id, {
+          path: next.previewPath,
+          url,
+          expiresAt: Date.now() + 55 * 60 * 1000,
+        });
         audio.src = url;
         audio.load();
         await audio.play();
