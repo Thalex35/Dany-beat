@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Pause, Play, RotateCcw, Volume2, X } from "lucide-react";
+import { Pause, Play, Repeat, RotateCcw, Volume2, X } from "lucide-react";
 
 import { Cover } from "@/components/site/Cover";
 import { YoutubeEmbed } from "@/components/site/YoutubeEmbed";
@@ -17,9 +17,11 @@ export function PlayerBar() {
     progress,
     duration,
     volume,
+    loop,
     toggle,
     seek,
     setVolume,
+    setLoop,
     registerYoutubeControls,
     setYoutubePlaying,
     setYoutubeProgress,
@@ -93,7 +95,7 @@ export function PlayerBar() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <div className="flex items-center gap-1" title="Volume">
+            <div className="hidden items-center gap-1 min-[420px]:flex" title="Volume">
               <Volume2 className="size-3.5 text-muted-foreground sm:size-4" aria-hidden="true" />
               <input
                 type="range"
@@ -107,6 +109,21 @@ export function PlayerBar() {
               />
             </div>
             <button
+              type="button"
+              onClick={() => setLoop(!loop)}
+              aria-label={loop ? "Désactiver la lecture en boucle" : "Activer la lecture en boucle"}
+              aria-pressed={loop}
+              title={loop ? "Désactiver la lecture en boucle" : "Lire en boucle"}
+              className={`button-contour grid size-8 shrink-0 place-items-center rounded-full transition-colors sm:size-9 ${
+                loop
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Repeat className="size-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
               onClick={() => toggle()}
               aria-label={finished ? "Rejouer" : playing ? "Mettre en pause" : "Lire"}
               className="button-contour grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background sm:size-9"
@@ -122,6 +139,7 @@ export function PlayerBar() {
               )}
             </button>
             <button
+              type="button"
               onClick={stop}
               aria-label="Fermer le player"
               className="button-contour grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground sm:size-8"
