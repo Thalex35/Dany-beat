@@ -15,6 +15,20 @@ Online payments are not enabled. Purchase inquiries are handled through WhatsApp
 - Admin tools for beats, users, comments, and site settings.
 - Engagement analytics for catalogue views, playback, and user interactions.
 - Supabase Row Level Security and migrations for application data.
+- Installable Progressive Web App with a responsive installation prompt.
+- Media Session controls for supported audio players and browsers.
+
+### PWA and background playback
+
+The web app manifest and install icons are in `public/manifest.json` and `public/icons/`.
+`public/sw.js` caches same-origin static assets only; Supabase APIs and signed audio files
+remain network requests. Installation requires HTTPS in production (or `localhost`).
+
+The shared player publishes track metadata and playback, seek, and queue actions through the
+Media Session API where the browser supports them. Browser and operating-system policies still
+determine whether playback continues while the app is in the background. YouTube-backed tracks
+may be suspended by their embedded player or by mobile browser restrictions. On iPhone and
+iPad, install from the browser's share menu using “Add to Home Screen”.
 
 ## Stack
 
