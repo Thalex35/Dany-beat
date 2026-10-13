@@ -43,7 +43,7 @@ import { useSettings } from "@/lib/settings";
 import { PUBLIC_CATALOGUE_CACHE_MAX_AGE } from "@/lib/catalogue-cache";
 
 export const Route = createFileRoute("/beats_/$slug")({
-  validateSearch: (search: Record<string, unknown>) => ({ autoplay: search.autoplay === true }),
+  validateSearch: (search: Record<string, unknown>) => ({ autoplay: search["autoplay"] === true }),
   head: ({ params }) => {
     const name = params.slug.replace(/-/g, " ");
     const title = `${name} — instrumentale | Dany Beats`;
@@ -94,8 +94,12 @@ function BeatDetailPage() {
   const stats = useQuery(beatStatsQuery(beatQuery.data?.id ? [beatQuery.data.id] : []));
   const beat = beatQuery.data ?? null;
   const isYoutube = beat?.media_source === "youtube";
+  const usesYoutubePlayback = isYoutube && !beat?.preview_path;
   const playbackQueue = useQuery({ ...publishedPlaybackQueueQuery, enabled: isYoutube });
-  const previewUrl = useSignedUrl("previews", isYoutube ? null : beat?.preview_path).data;
+  const previewUrl = useSignedUrl(
+    "previews",
+    usesYoutubePlayback ? null : beat?.preview_path,
+  ).data;
 
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
@@ -160,13 +164,14 @@ function BeatDetailPage() {
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
   const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
+  const beatTitle = beat.title;
 
   function shareUrl() {
     return typeof window === "undefined" ? "" : window.location.href;
   }
 
   function shareOnWhatsApp() {
-    const text = `Écoute le beat « ${beat.title} » sur DANY BEATS : ${shareUrl()}`;
+    const text = `Écoute le beat « ${beatTitle} » sur DANY BEATS : ${shareUrl()}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
@@ -229,7 +234,7 @@ function BeatDetailPage() {
             <div className="mt-5 flex flex-wrap items-center gap-3 sm:gap-4">
               <Button
                 size="md"
-                disabled={isYoutube ? !beat.youtube_url : !beat.preview_path}
+                disabled={usesYoutubePlayback ? !beat.youtube_url : !beat.preview_path}
                 onClick={() => {
                   if (isCurrent) {
                     toggle();
@@ -246,7 +251,7 @@ function BeatDetailPage() {
                   ? "Mettre en pause"
                   : finished && isCurrent
                     ? "Rejouer"
-                    : isYoutube
+                    : usesYoutubePlayback
                       ? "Lire sur YouTube"
                       : "Écouter l'extrait"}
               </Button>
@@ -371,10 +376,14 @@ function BeatDetailPage() {
                 startPurchase({
                   beatId: beat.id,
                   beatTitle: beat.title,
-                  licenseName: selectedLicense?.name,
+                  ...(selectedLicense?.name !== undefined
+                    ? { licenseName: selectedLicense.name }
+                    : {}),
                   price: selectedLicense?.price ?? beat.price,
                   producerName: settings.producer_name,
-                  buyerName: profile?.display_name,
+                  ...(profile?.display_name !== undefined
+                    ? { buyerName: profile.display_name }
+                    : {}),
                   whatsappNumber: settings.whatsapp_number,
                 });
               }}

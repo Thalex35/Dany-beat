@@ -13,7 +13,17 @@ import { safeAuthRedirect } from "@/lib/validation";
 import { useNavigate } from "@tanstack/react-router";
 import { ShoppingCart } from "lucide-react";
 
-export function CartButton({ beatId, licenseId, licenseName, licensePrice }: { beatId: string; licenseId?: string; licenseName?: string; licensePrice?: number }) {
+export function CartButton({
+  beatId,
+  licenseId,
+  licenseName,
+  licensePrice,
+}: {
+  beatId: string;
+  licenseId?: string | undefined;
+  licenseName?: string | undefined;
+  licensePrice?: number | undefined;
+}) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: ids } = useCartIds();
@@ -26,7 +36,13 @@ export function CartButton({ beatId, licenseId, licenseName, licensePrice }: { b
       aria-pressed={inCart}
       onClick={() =>
         user
-          ? toggle.mutate({ beatId, inCart, licenseId, licenseName, licensePrice })
+          ? toggle.mutate({
+              beatId,
+              inCart,
+              ...(licenseId !== undefined ? { licenseId } : {}),
+              ...(licenseName !== undefined ? { licenseName } : {}),
+              ...(licensePrice !== undefined ? { licensePrice } : {}),
+            })
           : navigate({
               to: "/auth",
               search: { redirect: safeAuthRedirect(window.location.pathname) },
@@ -54,11 +70,12 @@ export function BeatCard({
 }) {
   const { current, playing, finished, toggle, play } = usePlayer();
   const isYoutube = beat.media_source === "youtube";
+  const usesYoutubePlayback = isYoutube && !beat.preview_path;
   const track = playerTrackFromBeat(beat);
   const playerQueue = queue?.map(playerTrackFromBeat);
   const { data: previewUrl } = useSignedUrl(
     "previews",
-    isYoutube ? null : beat.preview_path,
+    usesYoutubePlayback ? null : beat.preview_path,
   );
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
@@ -69,6 +86,7 @@ export function BeatCard({
         <Link
           to="/beats/$slug"
           params={{ slug: beat.slug }}
+          search={{ autoplay: false }}
           aria-label={`Ouvrir ${beat.title}`}
           className="block h-full w-full"
         >
@@ -94,7 +112,12 @@ export function BeatCard({
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-base font-medium">
-            <Link to="/beats/$slug" params={{ slug: beat.slug }} className="premium-link hover:text-primary">
+            <Link
+              to="/beats/$slug"
+              params={{ slug: beat.slug }}
+              search={{ autoplay: false }}
+              className="premium-link hover:text-primary"
+            >
               {beat.title}
             </Link>
           </h3>
@@ -119,7 +142,7 @@ export function BeatCard({
               ? `Rejouer ${beat.title}`
               : isPlaying
                 ? `Mettre ${beat.title} en pause`
-                : isYoutube
+                : usesYoutubePlayback
                   ? `Lire ${beat.title} sur YouTube`
                   : `Écouter ${beat.title}`
           }

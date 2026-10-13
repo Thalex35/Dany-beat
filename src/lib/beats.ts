@@ -164,9 +164,8 @@ export const beatStatsQuery = (beatIds?: string[]) => ({
   queryKey: ["beat-stats", beatIds ?? "all"],
   staleTime: 30_000,
   queryFn: async (): Promise<Record<string, BeatStats>> => {
-    const { data, error } = await supabase.rpc("beat_public_stats", {
-      _beat_ids: beatIds === undefined ? null : beatIds,
-    });
+    const args = beatIds === undefined ? {} : { _beat_ids: beatIds };
+    const { data, error } = await supabase.rpc("beat_public_stats", args);
     if (error) throw error;
     const map: Record<string, BeatStats> = {};
     for (const row of (data ?? []) as BeatStats[]) map[row.beat_id] = row;

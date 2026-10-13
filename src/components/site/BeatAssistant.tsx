@@ -209,7 +209,7 @@ export function BeatAssistant() {
                       className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
                       onClick={() => {
                         if (current?.id === beat.id) toggle();
-                        else play(playerTrackFromBeat(beat));
+                        else play(playerTrackFromBeat(beat), recommendations.map(playerTrackFromBeat));
                       }}
                     >
                       {current?.id === beat.id && playing ? (

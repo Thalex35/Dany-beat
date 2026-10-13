@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let profile = (profileRes.data as Profile | null) ?? null;
       if (!profile) {
         const displayName =
-          (session?.user.user_metadata?.display_name as string | undefined) ??
+        (session?.user.user_metadata?.["display_name"] as string | undefined) ??
           session?.user.email?.split("@")[0] ??
           "Auditeur";
         const { data: createdProfile, error: createProfileError } = await supabase

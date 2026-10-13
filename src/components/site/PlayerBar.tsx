@@ -54,6 +54,7 @@ export function PlayerBar() {
           <Link
             to="/beats/$slug"
             params={{ slug: current.slug }}
+            search={{ autoplay: false }}
             className="size-20 shrink-0 overflow-hidden rounded-lg"
             aria-label={`Ouvrir ${current.title}`}
           >
@@ -61,7 +62,7 @@ export function PlayerBar() {
               path={current.coverPath}
               alt=""
               className="size-20 rounded-lg"
-              youtubeUrl={current.youtubeUrl}
+              youtubeUrl={current.youtubeUrl ?? null}
             />
           </Link>
           <div className="min-w-0 flex-1">
@@ -75,6 +76,11 @@ export function PlayerBar() {
                 </span>
               ) : null}
             </div>
+            {error ? (
+              <p className="mt-0.5 truncate text-[10px] text-destructive" role="status" title={error}>
+                {error}
+              </p>
+            ) : null}
             <div className="mt-2 flex items-center gap-1.5 sm:gap-2">
               <span className="w-7 shrink-0 text-[9px] tabular-nums text-muted-foreground">
                 {formatTime(progress)}
@@ -125,11 +131,13 @@ export function PlayerBar() {
             <button
               type="button"
               onClick={() => toggle()}
-              aria-label={finished ? "Rejouer" : playing ? "Mettre en pause" : "Lire"}
+              aria-label={error ? "Réessayer la lecture" : finished ? "Rejouer" : playing ? "Mettre en pause" : "Lire"}
               className="button-contour grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background sm:size-9"
             >
               {loading ? (
                 <Spinner />
+              ) : error ? (
+                <Play className="size-4" />
               ) : finished ? (
                 <RotateCcw className="size-4" />
               ) : playing ? (

@@ -47,7 +47,7 @@ export function playerTrackFromBeat(beat: {
     bpm: beat.bpm,
     coverPath: beat.cover_path,
     previewPath: beat.preview_path,
-    mediaSource: beat.media_source,
+    mediaSource: beat.preview_path ? "upload" : beat.media_source,
     youtubeUrl: beat.youtube_url,
   };
 }
@@ -94,6 +94,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loopRef = useRef(false);
   const playRef = useRef<(track: PlayerTrack) => void>(() => undefined);
   const playRequestRef = useRef(0);
+  const previewUrlsRef = useRef(new Map<string, { path: string; url: string; expiresAt: number }>());
+  const endedRequestRef = useRef<number | null>(null);
+  const youtubeEndHandledRef = useRef<string | null>(null);
   const mediaActionsRef = useRef({
     play: () => {},
     pause: () => {},
@@ -102,8 +105,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     seek: (_seconds: number) => {},
   });
   const playingRef = useRef(playing);
+  const progressRef = useRef(progress);
+  const durationRef = useRef(duration);
   const volumeRef = useRef(volume);
   playingRef.current = playing;
+  progressRef.current = progress;
+  durationRef.current = duration;
   volumeRef.current = volume;
 
   useEffect(() => {
@@ -114,15 +121,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onTime = () => setProgress(audio.currentTime);
     const onMeta = () => setDuration(audio.duration || 0);
     const onEnd = () => {
+      if (!audio.ended || currentRef.current?.mediaSource === "youtube") return;
+      const request = playRequestRef.current;
+      if (endedRequestRef.current === request) return;
+      endedRequestRef.current = request;
       if (loopRef.current && currentRef.current) {
         audio.currentTime = 0;
-        void audio.play();
+        endedRequestRef.current = null;
+        void audio.play().catch(() => {
+          setError("Le navigateur a interrompu la lecture. Appuyez sur Lire pour reprendre.");
+          setPlaying(false);
+        });
         return;
       }
       const currentIndex = queueRef.current.findIndex(
         (track) => track.id === currentRef.current?.id,
       );
-      const next = queueRef.current[currentIndex + 1];
+      const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
       if (next) {
         playRef.current(next);
         return;
@@ -169,6 +184,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const setYoutubePlaying = useCallback((value: boolean) => {
     setPlaying(value);
     setLoading(false);
+    if (value) youtubeEndHandledRef.current = null;
     if (value && currentRef.current) {
       void track("beat_play", { beatId: currentRef.current.id, once: true });
     }
@@ -188,6 +204,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const finishYoutube = useCallback(() => {
     const currentTrack = currentRef.current;
     if (!currentTrack || currentTrack.mediaSource !== "youtube") return;
+    if (youtubeEndHandledRef.current === currentTrack.id) return;
+    youtubeEndHandledRef.current = currentTrack.id;
     if (loopRef.current) {
       youtubeControlsRef.current?.seek(0);
       youtubeControlsRef.current?.play();
@@ -196,7 +214,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
     const currentIndex = queueRef.current.findIndex((track) => track.id === currentTrack.id);
-    const next = queueRef.current[currentIndex + 1];
+    const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
     if (next) {
       playRef.current(next);
       return;
@@ -210,7 +228,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const audio = audioRef.current;
       if (!audio) return;
       const request = ++playRequestRef.current;
+      endedRequestRef.current = null;
+      youtubeEndHandledRef.current = null;
       if (queue) queueRef.current = queue;
+      if (!queueRef.current.some((track) => track.id === next.id)) {
+        queueRef.current = queue ? [...queue, next] : [next];
+      }
+      const queueIndex = queueRef.current.findIndex((track) => track.id === next.id);
+      const upcomingTrack = queueIndex >= 0 ? queueRef.current[queueIndex + 1] : undefined;
+      if (upcomingTrack?.mediaSource !== "youtube" && upcomingTrack?.previewPath) {
+        const cachedUpcoming = previewUrlsRef.current.get(upcomingTrack.id);
+        if (
+          cachedUpcoming?.path !== upcomingTrack.previewPath ||
+          cachedUpcoming.expiresAt <= Date.now()
+        ) {
+          void signedUrl("previews", upcomingTrack.previewPath).then((url) => {
+            if (url) {
+              previewUrlsRef.current.set(upcomingTrack.id, {
+                path: upcomingTrack.previewPath!,
+                url,
+                expiresAt: Date.now() + 55 * 60 * 1000,
+              });
+            }
+          });
+        }
+      }
       setError(null);
       setFinished(false);
 
@@ -230,6 +272,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
         audio.pause();
+        setPlaying(false);
         audio.removeAttribute("src");
         youtubeControlsRef.current?.pause();
         youtubeControlsRef.current = null;
@@ -251,7 +294,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setPlaying(true);
         } catch {
           if (request === playRequestRef.current) {
-            setError("Playback was blocked by the browser.");
+            setError("Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.");
+            setPlaying(false);
           }
         }
         return;
@@ -266,12 +310,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setProgress(0);
       setDuration(0);
       try {
-        const url = await signedUrl("previews", next.previewPath);
+        const cachedPreview = previewUrlsRef.current.get(next.id);
+        const cachedUrl =
+          cachedPreview?.path === next.previewPath && cachedPreview.expiresAt > Date.now()
+            ? cachedPreview.url
+            : null;
+        const url = cachedUrl ?? (await signedUrl("previews", next.previewPath));
         if (request !== playRequestRef.current) return;
         if (!url) {
           setError("Audio file unavailable.");
           return;
         }
+        previewUrlsRef.current.set(next.id, {
+          path: next.previewPath,
+          url,
+          expiresAt: Date.now() + 55 * 60 * 1000,
+        });
         audio.src = url;
         audio.load();
         await audio.play();
@@ -280,13 +334,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void track("beat_play", { beatId: next.id, once: true });
       } catch {
         if (request === playRequestRef.current) {
-          setError("Playback was blocked by the browser.");
+          setError("Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.");
+          setPlaying(false);
         }
       } finally {
         if (request === playRequestRef.current) setLoading(false);
       }
     },
-    [current],
+    [current, finished],
   );
 
   const toggle = useCallback(
@@ -320,7 +375,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void play(current);
       }
     },
-    [current, playing, play],
+    [current, finished, playing, play],
   );
 
   playRef.current = (track) => void play(track);
@@ -351,7 +406,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       next: () => {
         const queue = queueRef.current;
         const index = queue.findIndex((track) => track.id === currentRef.current?.id);
-        const next = queue[index + 1];
+        const next = index >= 0 ? queue[index + 1] : undefined;
         if (next) playRef.current(next);
       },
       previous: () => {
@@ -380,12 +435,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setProgress(seconds);
       },
     };
-  }, [finished, progress]);
+  }, [duration, finished, progress]);
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
     const session = navigator.mediaSession;
-    const actions: MediaSessionAction[] = ["play", "pause", "previoustrack", "nexttrack", "seekto"];
+    const actions: MediaSessionAction[] = [
+      "play",
+      "pause",
+      "previoustrack",
+      "nexttrack",
+      "seekbackward",
+      "seekforward",
+      "seekto",
+    ];
     const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
       play: () => mediaActionsRef.current.play(),
       pause: () => mediaActionsRef.current.pause(),
@@ -393,6 +456,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       nexttrack: () => mediaActionsRef.current.next(),
       seekto: (details) => {
         if (typeof details.seekTime === "number") mediaActionsRef.current.seek(details.seekTime);
+      },
+      seekbackward: (details) => {
+        mediaActionsRef.current.seek(
+          Math.max(0, progressRef.current - (details.seekOffset ?? 10)),
+        );
+      },
+      seekforward: (details) => {
+        const nextPosition = progressRef.current + (details.seekOffset ?? 10);
+        mediaActionsRef.current.seek(
+          durationRef.current > 0
+            ? Math.min(durationRef.current, nextPosition)
+            : nextPosition,
+        );
       },
     };
 
@@ -427,10 +503,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       { src: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
     ];
+    if (typeof MediaMetadata !== "function") return;
     const metadata = (artwork: MediaImage[]) =>
       new MediaMetadata({
         title: current.title,
-        artist: "Dany Beats",
+        artist: "DANY BEATS",
         album: current.bpm ? `${current.bpm} BPM · Extrait` : "Extrait",
         artwork,
       });
@@ -440,7 +517,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const updateArtwork = async () => {
       try {
         const artworkUrl =
-          current.mediaSource === "youtube"
+          current.mediaSource === "youtube" && current.youtubeUrl
             ? youtubeThumbnailUrl(current.youtubeUrl)
             : await signedUrl("covers", current.coverPath);
         if (!cancelled && artworkUrl) session.metadata = metadata([{ src: artworkUrl }]);

@@ -19,16 +19,16 @@ function isDefaultCataloguePage(value: unknown) {
   const params = value as Record<string, unknown>;
   return (
     Object.keys(params).length === 10 &&
-    params.page === 0 &&
-    params.pageSize === 24 &&
-    params.search === "" &&
-    params.genre === "all" &&
-    params.mood === "all" &&
-    params.songKey === "all" &&
-    params.bpmMin === null &&
-    params.bpmMax === null &&
-    params.priceMax === null &&
-    params.sort === "newest"
+    params["page"] === 0 &&
+    params["pageSize"] === 24 &&
+    params["search"] === "" &&
+    params["genre"] === "all" &&
+    params["mood"] === "all" &&
+    params["songKey"] === "all" &&
+    params["bpmMin"] === null &&
+    params["bpmMax"] === null &&
+    params["priceMax"] === null &&
+    params["sort"] === "newest"
   );
 }
 

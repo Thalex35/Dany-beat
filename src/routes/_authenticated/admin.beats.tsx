@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Pause, Pencil, Play, Plus, Trash2, Upload } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Cover } from "@/components/site/Cover";
@@ -98,7 +98,7 @@ async function uploadTo(bucket: string, file: File, slug: string) {
   const path = `${slug || "beat"}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
     upsert: false,
-    contentType: file.type || undefined,
+    ...(file.type ? { contentType: file.type } : {}),
     cacheControl: "3600",
   });
   if (error) throw error;
@@ -112,7 +112,17 @@ function AdminBeats() {
   const [selectedBeat, setSelectedBeat] = useState<Beat | null>(null);
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [formScrollRequest, setFormScrollRequest] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
   const { current, playing, toggle } = usePlayer();
+
+  useEffect(() => {
+    if (!form?.id) return;
+    const frame = window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [form?.id, formScrollRequest]);
 
   const beats = useQuery({
     queryKey: ["admin-beats"],
@@ -251,7 +261,8 @@ function AdminBeats() {
 
       {form ? (
         <form
-          className="admin-editor-panel rounded-3xl p-6"
+          ref={formRef}
+          className="admin-editor-panel scroll-mt-24 rounded-3xl p-6"
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate(form);
@@ -384,7 +395,7 @@ function AdminBeats() {
               htmlFor="youtube_url"
               hint={
                 form.media_source === "youtube"
-                  ? "Requis. La miniature et le lecteur seront chargés depuis YouTube."
+                  ? "Requis. Si un extrait audio est importé, il sera lu sur le site; sinon, le lecteur YouTube est utilisé."
                   : "Lien facultatif vers la vidéo, affiché sur la fiche publique."
               }
             >
@@ -399,8 +410,9 @@ function AdminBeats() {
             </Field>
             {form.media_source === "youtube" ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                Ce beat utilise le lecteur visible de YouTube. Aucune pochette ou preview audio
-                n'est chargée depuis Supabase.
+                {form.preview_path
+                  ? "L'extrait audio importé sera lu sur le site; le lien vidéo YouTube restera disponible sur la fiche."
+                  : "Sans extrait audio importé, la lecture utilise YouTube et peut être limitée en arrière-plan."}
               </p>
             ) : null}
           </div>
@@ -506,11 +518,20 @@ function AdminBeats() {
                   },
                 ] as const
               )
-                .filter((slot) => form.media_source === "upload" || slot.bucket === "masters")
+                .filter(
+                  (slot) =>
+                    form.media_source === "upload" ||
+                    slot.bucket === "masters" ||
+                    slot.bucket === "previews",
+                )
                 .map((slot) => (
                 <div key={slot.bucket} className="rounded-2xl bg-background p-4 ring-1 ring-border">
                   <p className="text-sm font-medium">{slot.label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{slot.hint}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {slot.bucket === "previews" && form.media_source === "youtube"
+                      ? "MP3 natif pour écouter et enchaîner les beats; le lien YouTube est conservé."
+                      : slot.hint}
+                  </p>
                   <label className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
                     <Upload className="size-4" aria-hidden="true" />
                     {slot.path ? "Remplacer le fichier" : "Importer un fichier"}
@@ -661,6 +682,7 @@ function AdminBeats() {
                   onClick={(event) => {
                     event.stopPropagation();
                     setForm(toForm(beat));
+                    setFormScrollRequest((request) => request + 1);
                   }}
                 >
                   <Pencil />
