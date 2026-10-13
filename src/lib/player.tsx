@@ -9,7 +9,16 @@ import {
 } from "react";
 
 import { track } from "@/lib/analytics";
-import { signedUrl } from "@/lib/media";
+import { getCachedSignedUrl, signedUrl } from "@/lib/media";
+import {
+  clearMediaSessionPosition,
+  getMediaSession,
+  registerMediaSessionHandlers,
+  setMediaSessionMetadata,
+  setMediaSessionPlaybackState,
+  setMediaSessionPosition,
+} from "@/lib/media-session";
+import { syncPlaybackLifecycle } from "@/lib/player-lifecycle";
 import { getYoutubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
 
 export type PlayerTrack = {
@@ -77,6 +86,28 @@ type PlayerValue = {
 
 const PlayerContext = createContext<PlayerValue | null>(null);
 
+function waitForAudioMetadata(audio: HTMLAudioElement) {
+  if (audio.readyState >= 1) return Promise.resolve();
+
+  return new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("error", onError);
+    };
+    const onLoadedMetadata = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("Audio metadata could not be loaded."));
+    };
+
+    audio.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
+    audio.addEventListener("error", onError, { once: true });
+  });
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [current, setCurrent] = useState<PlayerTrack | null>(null);
@@ -115,7 +146,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const audio = new Audio();
-    audio.preload = "none";
+    audio.preload = "auto";
     audio.volume = 0.9;
     audioRef.current = audio;
     const onTime = () => setProgress(audio.currentTime);
@@ -161,7 +192,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnd);
     audio.addEventListener("error", onErr);
+    const detachLifecycle = syncPlaybackLifecycle(audio, document, window, (snapshot) => {
+      if (currentRef.current?.mediaSource === "youtube") return;
+      setProgress(snapshot.currentTime);
+      setDuration(snapshot.duration);
+      setPlaying(snapshot.playing);
+    });
     return () => {
+      detachLifecycle();
       audio.pause();
       audio.removeEventListener("timeupdate", onTime);
       audio.removeEventListener("loadedmetadata", onMeta);
@@ -274,6 +312,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         audio.pause();
         setPlaying(false);
         audio.removeAttribute("src");
+        audio.load();
         youtubeControlsRef.current?.pause();
         youtubeControlsRef.current = null;
         setCurrent(next);
@@ -287,7 +326,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       youtubeControlsRef.current?.pause();
       youtubeControlsRef.current = null;
-      if (current?.id === next.id && audio.src) {
+      const cachedPreview = previewUrlsRef.current.get(next.id);
+      const refreshUrl = Boolean(audio.error);
+      const cachedUrl =
+        !refreshUrl &&
+        cachedPreview?.path === next.previewPath &&
+        cachedPreview.expiresAt > Date.now()
+          ? cachedPreview.url
+          : null;
+      const sharedCachedUrl = refreshUrl ? null : getCachedSignedUrl("previews", next.previewPath);
+      if (current?.id === next.id && audio.src && (cachedUrl || sharedCachedUrl) && !audio.error) {
         if (audio.ended) audio.currentTime = 0;
         try {
           await audio.play();
@@ -304,21 +352,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setError("Aucun extrait disponible pour ce beat.");
         return;
       }
+      const restorePosition = current?.id === next.id && !audio.ended ? audio.currentTime : 0;
+      if (current?.id !== next.id) audio.pause();
       setLoading(true);
       setCurrent(next);
       currentRef.current = next;
       setProgress(0);
       setDuration(0);
       try {
-        const cachedPreview = previewUrlsRef.current.get(next.id);
-        const cachedUrl =
-          cachedPreview?.path === next.previewPath && cachedPreview.expiresAt > Date.now()
-            ? cachedPreview.url
-            : null;
-        const url = cachedUrl ?? (await signedUrl("previews", next.previewPath));
+        const url =
+          cachedUrl ??
+          sharedCachedUrl ??
+          (await signedUrl("previews", next.previewPath, { refresh: refreshUrl }));
         if (request !== playRequestRef.current) return;
         if (!url) {
-          setError("Audio file unavailable.");
+          setError("L'extrait audio est indisponible. Réessayez dans un instant.");
           return;
         }
         previewUrlsRef.current.set(next.id, {
@@ -326,8 +374,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           url,
           expiresAt: Date.now() + 55 * 60 * 1000,
         });
+        audio.pause();
         audio.src = url;
         audio.load();
+        if (restorePosition > 0) {
+          await waitForAudioMetadata(audio);
+          if (request !== playRequestRef.current) return;
+          const maxPosition = Number.isFinite(audio.duration)
+            ? Math.max(0, audio.duration - 0.1)
+            : restorePosition;
+          audio.currentTime = Math.min(restorePosition, maxPosition);
+        }
         await audio.play();
         setPlaying(true);
         // One play event per beat per browser session — no inflated stats.
@@ -429,26 +486,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       },
       seek: (seconds) => {
+        const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+        const position =
+          durationRef.current > 0
+            ? Math.min(durationRef.current, safeSeconds)
+            : safeSeconds;
         if (currentRef.current?.mediaSource === "youtube")
-          youtubeControlsRef.current?.seek(seconds);
-        else if (audioRef.current) audioRef.current.currentTime = seconds;
-        setProgress(seconds);
+          youtubeControlsRef.current?.seek(position);
+        else if (audioRef.current) audioRef.current.currentTime = position;
+        setProgress(position);
       },
     };
   }, [duration, finished, progress]);
 
   useEffect(() => {
-    if (!("mediaSession" in navigator)) return;
-    const session = navigator.mediaSession;
-    const actions: MediaSessionAction[] = [
-      "play",
-      "pause",
-      "previoustrack",
-      "nexttrack",
-      "seekbackward",
-      "seekforward",
-      "seekto",
-    ];
+    const session = getMediaSession();
+    if (!session) return;
     const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
       play: () => mediaActionsRef.current.play(),
       pause: () => mediaActionsRef.current.pause(),
@@ -472,30 +525,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       },
     };
 
-    for (const action of actions) {
-      try {
-        session.setActionHandler(action, handlers[action] ?? null);
-      } catch {
-        // Browsers can expose Media Session without supporting every action.
-      }
-    }
-    return () => {
-      for (const action of actions) {
-        try {
-          session.setActionHandler(action, null);
-        } catch {
-          // Unsupported actions do not need cleanup.
-        }
-      }
-    };
+    return registerMediaSessionHandlers(session, handlers);
   }, []);
 
   useEffect(() => {
-    if (!("mediaSession" in navigator)) return;
-    const session = navigator.mediaSession;
+    const session = getMediaSession();
+    if (!session) return;
     if (!current) {
-      session.metadata = null;
-      session.playbackState = "none";
+      setMediaSessionMetadata(session, null);
+      setMediaSessionPlaybackState(session, "none");
+      clearMediaSessionPosition(session);
       return;
     }
 
@@ -511,16 +550,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         album: current.bpm ? `${current.bpm} BPM · Extrait` : "Extrait",
         artwork,
       });
-    session.metadata = metadata(fallbackArtwork);
+    try {
+      setMediaSessionMetadata(session, metadata(fallbackArtwork));
+    } catch {
+      return;
+    }
 
     let cancelled = false;
     const updateArtwork = async () => {
       try {
         const artworkUrl =
-          current.mediaSource === "youtube" && current.youtubeUrl
+          current.youtubeUrl
             ? youtubeThumbnailUrl(current.youtubeUrl)
             : await signedUrl("covers", current.coverPath);
-        if (!cancelled && artworkUrl) session.metadata = metadata([{ src: artworkUrl }]);
+        if (!cancelled && artworkUrl) {
+          setMediaSessionMetadata(session, metadata([{ src: artworkUrl }]));
+        }
       } catch (error) {
         if (!cancelled) console.error("Impossible de charger la pochette Media Session.", error);
       }
@@ -532,20 +577,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [current]);
 
   useEffect(() => {
-    if (!("mediaSession" in navigator)) return;
-    const session = navigator.mediaSession;
-    session.playbackState = playing ? "playing" : current ? "paused" : "none";
-    if (duration > 0 && typeof session.setPositionState === "function") {
-      try {
-        session.setPositionState({
-          duration,
-          playbackRate: 1,
-          position: Math.min(progress, duration),
-        });
-      } catch {
-        // Ignore invalid or unsupported position state updates.
-      }
-    }
+    const session = getMediaSession();
+    if (!session) return;
+    setMediaSessionPlaybackState(session, playing ? "playing" : current ? "paused" : "none");
+    if (duration > 0) setMediaSessionPosition(session, progress, duration);
+    else clearMediaSessionPosition(session);
   }, [current, duration, playing, progress]);
 
   const seek = useCallback((seconds: number) => {

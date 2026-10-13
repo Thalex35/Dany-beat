@@ -109,7 +109,16 @@ function BeatDetailPage() {
     if (!autoplay || !beat || !isYoutube || !beat.youtube_url || !playbackQueue.isSuccess) return;
     if (current?.id === beat.id) return;
     play(playerTrackFromBeat(beat), playbackQueue.data.map(playerTrackFromBeat));
-  }, [autoplay, beat, current?.id, isYoutube, play, playbackQueue.data, playbackQueue.isSuccess]);
+  }, [
+    autoplay,
+    beat,
+    current?.id,
+    isYoutube,
+    play,
+    playbackQueue.data,
+    playbackQueue.isSuccess,
+    previewUrl,
+  ]);
 
   if (beatQuery.isPending) {
     return (

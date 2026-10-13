@@ -3,24 +3,60 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const ONE_HOUR = 60 * 60;
+const SIGNED_URL_CACHE_AGE_MS = (ONE_HOUR - 300) * 1000;
+const SIGNED_URL_CACHE_LIMIT = 128;
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+function cacheSignedUrl(key: string, url: string) {
+  if (signedUrlCache.size >= SIGNED_URL_CACHE_LIMIT && !signedUrlCache.has(key)) {
+    for (const [cachedKey, cached] of signedUrlCache) {
+      if (cached.expiresAt <= Date.now()) signedUrlCache.delete(cachedKey);
+    }
+    if (signedUrlCache.size >= SIGNED_URL_CACHE_LIMIT) {
+      const oldestKey = signedUrlCache.keys().next().value;
+      if (oldestKey) signedUrlCache.delete(oldestKey);
+    }
+  }
+  signedUrlCache.set(key, { url, expiresAt: Date.now() + SIGNED_URL_CACHE_AGE_MS });
+}
 
 /**
  * Media lives in private buckets. Public-facing assets (covers, previews) are
  * readable by everyone through RLS, but are still served via time-limited
  * signed URLs so masters/full-length files can stay locked down later.
  */
-export async function signedUrl(bucket: string, path: string | null | undefined) {
+export async function signedUrl(
+  bucket: string,
+  path: string | null | undefined,
+  options: { refresh?: boolean } = {},
+) {
   if (!path) return null;
+  const cacheKey = `${bucket}:${path}`;
+  const cached = signedUrlCache.get(cacheKey);
+  if (!options.refresh && cached && cached.expiresAt > Date.now()) return cached.url;
+
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, ONE_HOUR);
   if (error) return null;
+  cacheSignedUrl(cacheKey, data.signedUrl);
   return data.signedUrl;
+}
+
+export function getCachedSignedUrl(bucket: string, path: string | null | undefined) {
+  if (!path) return null;
+  const cacheKey = `${bucket}:${path}`;
+  const cached = signedUrlCache.get(cacheKey);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    signedUrlCache.delete(cacheKey);
+    return null;
+  }
+  return cached.url;
 }
 
 export function useSignedUrl(bucket: string, path: string | null | undefined) {
   return useQuery({
     queryKey: ["signed-url", bucket, path],
     enabled: !!path,
-    staleTime: (ONE_HOUR - 300) * 1000,
+    staleTime: SIGNED_URL_CACHE_AGE_MS,
     queryFn: () => signedUrl(bucket, path),
   });
 }

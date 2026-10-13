@@ -1,5 +1,5 @@
 import { Bot, MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Cover } from "@/components/site/Cover";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/field";
 import { supabase } from "@/integrations/supabase/client";
 import { BEAT_COLUMNS, formatPrice, type Beat } from "@/lib/beats";
 import { openWhatsapp } from "@/lib/contact";
+import { signedUrl } from "@/lib/media";
 import { playerTrackFromBeat, usePlayer } from "@/lib/player";
 import { useSettings } from "@/lib/settings";
 
@@ -111,6 +112,16 @@ export function BeatAssistant() {
   const { current, playing, finished, toggle, play } = usePlayer();
   const { data: settings } = useSettings();
   const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
+
+  useEffect(() => {
+    for (const beat of recommendations) {
+      if (beat.preview_path) {
+        void signedUrl("previews", beat.preview_path).catch((error: unknown) => {
+          console.error("Impossible de préparer l'extrait recommandé.", error);
+        });
+      }
+    }
+  }, [recommendations]);
 
   async function send(value = input) {
     const text = value.trim();
