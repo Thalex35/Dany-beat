@@ -54,6 +54,7 @@ export function PlayerBar() {
           <Link
             to="/beats/$slug"
             params={{ slug: current.slug }}
+            search={{ autoplay: false }}
             className="size-20 shrink-0 overflow-hidden rounded-lg"
             aria-label={`Ouvrir ${current.title}`}
           >
@@ -61,7 +62,7 @@ export function PlayerBar() {
               path={current.coverPath}
               alt=""
               className="size-20 rounded-lg"
-              youtubeUrl={current.youtubeUrl}
+              youtubeUrl={current.youtubeUrl ?? null}
             />
           </Link>
           <div className="min-w-0 flex-1">

@@ -105,8 +105,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     seek: (_seconds: number) => {},
   });
   const playingRef = useRef(playing);
+  const progressRef = useRef(progress);
+  const durationRef = useRef(duration);
   const volumeRef = useRef(volume);
   playingRef.current = playing;
+  progressRef.current = progress;
+  durationRef.current = duration;
   volumeRef.current = volume;
 
   useEffect(() => {
@@ -269,6 +273,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
         audio.pause();
         setPlaying(false);
+        audio.removeAttribute("src");
         youtubeControlsRef.current?.pause();
         youtubeControlsRef.current = null;
         setCurrent(next);
@@ -336,7 +341,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (request === playRequestRef.current) setLoading(false);
       }
     },
-    [current],
+    [current, finished],
   );
 
   const toggle = useCallback(
@@ -370,7 +375,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void play(current);
       }
     },
-    [current, playing, play],
+    [current, finished, playing, play],
   );
 
   playRef.current = (track) => void play(track);
@@ -430,7 +435,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setProgress(seconds);
       },
     };
-  }, [finished, progress]);
+  }, [duration, finished, progress]);
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
@@ -453,11 +458,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (typeof details.seekTime === "number") mediaActionsRef.current.seek(details.seekTime);
       },
       seekbackward: (details) => {
-        mediaActionsRef.current.seek(Math.max(0, progress - (details.seekOffset ?? 10)));
+        mediaActionsRef.current.seek(
+          Math.max(0, progressRef.current - (details.seekOffset ?? 10)),
+        );
       },
       seekforward: (details) => {
-        const nextPosition = progress + (details.seekOffset ?? 10);
-        mediaActionsRef.current.seek(duration > 0 ? Math.min(duration, nextPosition) : nextPosition);
+        const nextPosition = progressRef.current + (details.seekOffset ?? 10);
+        mediaActionsRef.current.seek(
+          durationRef.current > 0
+            ? Math.min(durationRef.current, nextPosition)
+            : nextPosition,
+        );
       },
     };
 
@@ -506,7 +517,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const updateArtwork = async () => {
       try {
         const artworkUrl =
-          current.youtubeUrl
+          current.mediaSource === "youtube" && current.youtubeUrl
             ? youtubeThumbnailUrl(current.youtubeUrl)
             : await signedUrl("covers", current.coverPath);
         if (!cancelled && artworkUrl) session.metadata = metadata([{ src: artworkUrl }]);

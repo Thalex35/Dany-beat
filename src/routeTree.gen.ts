@@ -16,7 +16,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BeatsRouteImport } from './routes/beats'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as AuthenticatedCartRouteImport } from './routes/_authenticated/cart'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as BeatsSlugRouteImport } from './routes/beats_.$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
@@ -58,11 +57,6 @@ const ContactRoute = ContactRouteImport.update({
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedCartRoute = AuthenticatedCartRouteImport.update({
-  id: '/cart',
-  path: '/cart',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
@@ -115,7 +109,6 @@ export interface FileRoutesByFullPath {
   '/beats': typeof BeatsRoute
   '/contact': typeof ContactRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
-  '/cart': typeof AuthenticatedCartRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/beats/$slug': typeof BeatsSlugRoute
   '/admin/beats': typeof AuthenticatedAdminBeatsRoute
@@ -131,7 +124,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/beats': typeof BeatsRoute
   '/contact': typeof ContactRoute
-  '/cart': typeof AuthenticatedCartRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/beats/$slug': typeof BeatsSlugRoute
   '/admin/beats': typeof AuthenticatedAdminBeatsRoute
@@ -150,7 +142,6 @@ export interface FileRoutesById {
   '/beats': typeof BeatsRoute
   '/contact': typeof ContactRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
-  '/_authenticated/cart': typeof AuthenticatedCartRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/beats_/$slug': typeof BeatsSlugRoute
   '/_authenticated/admin/beats': typeof AuthenticatedAdminBeatsRoute
@@ -169,7 +160,6 @@ export interface FileRouteTypes {
     | '/beats'
     | '/contact'
     | '/admin'
-    | '/cart'
     | '/profile'
     | '/beats/$slug'
     | '/admin/beats'
@@ -185,7 +175,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/beats'
     | '/contact'
-    | '/cart'
     | '/profile'
     | '/beats/$slug'
     | '/admin/beats'
@@ -203,7 +192,6 @@ export interface FileRouteTypes {
     | '/beats'
     | '/contact'
     | '/_authenticated/admin'
-    | '/_authenticated/cart'
     | '/_authenticated/profile'
     | '/beats_/$slug'
     | '/_authenticated/admin/beats'
@@ -273,13 +261,6 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/cart': {
-      id: '/_authenticated/cart'
-      path: '/cart'
-      fullPath: '/cart'
-      preLoaderRoute: typeof AuthenticatedCartRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/profile': {
@@ -364,13 +345,11 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
-  AuthenticatedCartRoute: typeof AuthenticatedCartRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
-  AuthenticatedCartRoute: AuthenticatedCartRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
 }
 

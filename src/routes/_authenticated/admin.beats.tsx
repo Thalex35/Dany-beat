@@ -98,7 +98,7 @@ async function uploadTo(bucket: string, file: File, slug: string) {
   const path = `${slug || "beat"}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
     upsert: false,
-    contentType: file.type || undefined,
+    ...(file.type ? { contentType: file.type } : {}),
     cacheControl: "3600",
   });
   if (error) throw error;
@@ -395,7 +395,7 @@ function AdminBeats() {
               htmlFor="youtube_url"
               hint={
                 form.media_source === "youtube"
-                  ? "Requis. Importez aussi un extrait audio ci-dessous pour utiliser le lecteur natif du site."
+                  ? "Requis. Si un extrait audio est importé, il sera lu sur le site; sinon, le lecteur YouTube est utilisé."
                   : "Lien facultatif vers la vidéo, affiché sur la fiche publique."
               }
             >
