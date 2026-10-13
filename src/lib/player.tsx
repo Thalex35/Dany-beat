@@ -145,10 +145,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   volumeRef.current = volume;
 
   useEffect(() => {
-    const audio = new Audio();
-    audio.preload = "auto";
+    const audio = audioRef.current;
+    if (!audio) return;
     audio.volume = 0.9;
-    audioRef.current = audio;
     const onTime = () => setProgress(audio.currentTime);
     const onMeta = () => setDuration(audio.duration || 0);
     const onEnd = () => {
@@ -177,10 +176,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setFinished(true);
     };
     const onPlay = () => {
+      const session = getMediaSession();
+      if (session) setMediaSessionPlaybackState(session, "playing");
       setPlaying(true);
       setFinished(false);
     };
-    const onPause = () => setPlaying(false);
+    const onPause = () => {
+      const session = getMediaSession();
+      if (session) setMediaSessionPlaybackState(session, "paused");
+      setPlaying(false);
+    };
     const onErr = () => {
       setError("Cet extrait n'a pas pu être chargé.");
       setPlaying(false);
@@ -650,6 +655,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      <audio
+        ref={audioRef}
+        preload="auto"
+        playsInline
+        aria-hidden="true"
+        tabIndex={-1}
+        className="sr-only"
+      />
     </PlayerContext.Provider>
   );
 }
