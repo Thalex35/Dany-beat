@@ -30,11 +30,12 @@ determine whether playback continues while the app is in the background. YouTube
 may be suspended by their embedded player or by mobile browser restrictions. On iPhone and
 iPad, install from the browser's share menu using “Add to Home Screen”.
 
-Uploaded previews use the root-mounted shared HTML audio player. Client-side route changes do
-not replace the player or pause audio. Visibility changes and page lifecycle events synchronize
-the displayed playback state without requesting a pause. Start playback from a user interaction
-while the page is active; catalogue and beat-detail previews are prepared ahead of playback when
-possible so mobile browsers can honor their user-activation requirements. On supported browsers,
+Uploaded previews use one persistent, DOM-mounted HTML audio element in the root-level shared
+player. Client-side route changes do not replace the player or pause audio. Visibility changes
+and page lifecycle events synchronize the displayed playback state without requesting a pause.
+Start playback from a user interaction while the page is active; catalogue and beat-detail
+previews are prepared ahead of playback when possible so mobile browsers can honor their
+user-activation requirements. On supported browsers,
 native HTML audio and Media Session may continue playback and expose lock-screen controls, but
 the browser, operating system, power-saving settings, network, and device can still suspend or
 terminate background work. This behavior must be verified on physical devices.
