@@ -41,6 +41,7 @@ export type YoutubeControls = {
   pause: () => void;
   seek: (seconds: number) => void;
   setVolume: (value: number) => void;
+  loadVideo: (videoId: string) => void;
 };
 
 export function playerTrackFromBeat(beat: {
@@ -329,6 +330,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
         if (current?.mediaSource === "youtube") {
+          const videoId = getYoutubeVideoId(next.youtubeUrl);
+          if (!videoId || !youtubeControlsRef.current) {
+            setError("Le lecteur YouTube n'est pas prêt. Appuyez sur Lire pour reprendre.");
+            setPlaying(false);
+            setLoading(false);
+            return;
+          }
+          youtubeControlsRef.current.loadVideo(videoId);
           setCurrent(next);
           currentRef.current = next;
           youtubeEndHandledRef.current = next.id;

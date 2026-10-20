@@ -162,6 +162,11 @@ export function YoutubeEmbed({
                 pause: () => target.pauseVideo(),
                 seek: (seconds) => target.seekTo(seconds, true),
                 setVolume: (value) => target.setVolume(Math.round(value * 100)),
+                loadVideo: (nextVideoId) => {
+                  videoIdRef.current = nextVideoId;
+                  loadedVideoIdRef.current = nextVideoId;
+                  target.loadVideoById(nextVideoId);
+                },
               };
               onControlsRef.current?.(controls);
             },
