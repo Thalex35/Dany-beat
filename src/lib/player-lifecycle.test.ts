@@ -1,12 +1,38 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { syncPlaybackLifecycle } from "./player-lifecycle";
+import {
+  listenForAudioEnded,
+  shouldAutoAdvanceAfterPlayError,
+  syncPlaybackLifecycle,
+} from "./player-lifecycle";
 
 class FakeDocument extends EventTarget {
   visibilityState: DocumentVisibilityState = "visible";
 }
 
 describe("playback page lifecycle", () => {
+  it("handles the ended event independently of visibility and the ended property", () => {
+    const documentTarget = new FakeDocument();
+    documentTarget.visibilityState = "hidden";
+    const audio = Object.assign(new EventTarget(), { ended: false });
+    const onEnded = vi.fn();
+    const detach = listenForAudioEnded(audio, onEnded);
+
+    documentTarget.dispatchEvent(new Event("visibilitychange"));
+    audio.dispatchEvent(new Event("ended"));
+
+    expect(onEnded).toHaveBeenCalledOnce();
+    detach();
+    audio.dispatchEvent(new Event("ended"));
+    expect(onEnded).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a blocked autoplay track selected but advances past media failures", () => {
+    expect(shouldAutoAdvanceAfterPlayError({ name: "NotAllowedError" })).toBe(false);
+    expect(shouldAutoAdvanceAfterPlayError({ name: "NotSupportedError" })).toBe(true);
+    expect(shouldAutoAdvanceAfterPlayError(new Error("Network error"))).toBe(true);
+  });
+
   it("keeps audio playing across visibility and page lifecycle events", () => {
     const documentTarget = new FakeDocument();
     const windowTarget = new EventTarget();

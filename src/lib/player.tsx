@@ -18,7 +18,11 @@ import {
   setMediaSessionPlaybackState,
   setMediaSessionPosition,
 } from "@/lib/media-session";
-import { syncPlaybackLifecycle } from "@/lib/player-lifecycle";
+import {
+  listenForAudioEnded,
+  shouldAutoAdvanceAfterPlayError,
+  syncPlaybackLifecycle,
+} from "@/lib/player-lifecycle";
 import { getYoutubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
 
 export type PlayerTrack = {
@@ -123,7 +127,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const currentRef = useRef<PlayerTrack | null>(null);
   const youtubeControlsRef = useRef<YoutubeControls | null>(null);
   const loopRef = useRef(false);
-  const playRef = useRef<(track: PlayerTrack) => void>(() => undefined);
+  const playRef = useRef<(track: PlayerTrack, autoAdvance?: boolean) => void>(() => undefined);
   const playRequestRef = useRef(0);
   const previewUrlsRef = useRef(new Map<string, { path: string; url: string; expiresAt: number }>());
   const endedRequestRef = useRef<number | null>(null);
@@ -151,25 +155,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onTime = () => setProgress(audio.currentTime);
     const onMeta = () => setDuration(audio.duration || 0);
     const onEnd = () => {
-      if (!audio.ended || currentRef.current?.mediaSource === "youtube") return;
+      const endedTrack = currentRef.current;
+      if (!endedTrack || endedTrack.mediaSource === "youtube") return;
       const request = playRequestRef.current;
       if (endedRequestRef.current === request) return;
       endedRequestRef.current = request;
-      if (loopRef.current && currentRef.current) {
+      if (loopRef.current) {
+        const loopRequest = ++playRequestRef.current;
         audio.currentTime = 0;
-        endedRequestRef.current = null;
+        endedRequestRef.current = loopRequest - 1;
         void audio.play().catch(() => {
-          setError("Le navigateur a interrompu la lecture. Appuyez sur Lire pour reprendre.");
-          setPlaying(false);
+          if (loopRequest === playRequestRef.current) {
+            setError("Le navigateur a interrompu la lecture. Appuyez sur Lire pour reprendre.");
+            setPlaying(false);
+          }
         });
         return;
       }
       const currentIndex = queueRef.current.findIndex(
-        (track) => track.id === currentRef.current?.id,
+        (track) => track.id === endedTrack.id,
       );
       const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
       if (next) {
-        playRef.current(next);
+        playRef.current(next, true);
         return;
       }
       setPlaying(false);
@@ -195,8 +203,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("loadedmetadata", onMeta);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
-    audio.addEventListener("ended", onEnd);
     audio.addEventListener("error", onErr);
+    const detachEnded = listenForAudioEnded(audio, onEnd);
     const detachLifecycle = syncPlaybackLifecycle(audio, document, window, (snapshot) => {
       if (currentRef.current?.mediaSource === "youtube") return;
       setProgress(snapshot.currentTime);
@@ -205,12 +213,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
     return () => {
       detachLifecycle();
+      detachEnded();
       audio.pause();
       audio.removeEventListener("timeupdate", onTime);
       audio.removeEventListener("loadedmetadata", onMeta);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("ended", onEnd);
       audio.removeEventListener("error", onErr);
     };
   }, []);
@@ -267,9 +275,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const play = useCallback(
-    async (next: PlayerTrack, queue?: PlayerTrack[]) => {
+    async (next: PlayerTrack, queue?: PlayerTrack[], autoAdvance = false) => {
       const audio = audioRef.current;
       if (!audio) return;
+      const advanceAfterFailure = () => {
+        const currentIndex = queueRef.current.findIndex((track) => track.id === next.id);
+        const following = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
+        if (following) playRef.current(following, true);
+      };
       const request = ++playRequestRef.current;
       endedRequestRef.current = null;
       youtubeEndHandledRef.current = null;
@@ -302,6 +315,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (next.mediaSource === "youtube") {
         if (!next.youtubeUrl || !getYoutubeVideoId(next.youtubeUrl)) {
           setError("Aucune URL YouTube disponible pour ce beat.");
+          if (autoAdvance) advanceAfterFailure();
           return;
         }
         if (current?.id === next.id && current.mediaSource === "youtube") {
@@ -345,16 +359,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         try {
           await audio.play();
           setPlaying(true);
-        } catch {
+        } catch (playError) {
           if (request === playRequestRef.current) {
             setError("Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.");
             setPlaying(false);
+            if (autoAdvance && shouldAutoAdvanceAfterPlayError(playError)) {
+              advanceAfterFailure();
+            }
           }
         }
         return;
       }
       if (!next.previewPath) {
         setError("Aucun extrait disponible pour ce beat.");
+        if (autoAdvance) advanceAfterFailure();
         return;
       }
       const restorePosition = current?.id === next.id && !audio.ended ? audio.currentTime : 0;
@@ -372,6 +390,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (request !== playRequestRef.current) return;
         if (!url) {
           setError("L'extrait audio est indisponible. Réessayez dans un instant.");
+          if (autoAdvance) advanceAfterFailure();
           return;
         }
         previewUrlsRef.current.set(next.id, {
@@ -394,10 +413,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setPlaying(true);
         // One play event per beat per browser session — no inflated stats.
         void track("beat_play", { beatId: next.id, once: true });
-      } catch {
+      } catch (playError) {
         if (request === playRequestRef.current) {
           setError("Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.");
           setPlaying(false);
+          if (autoAdvance && shouldAutoAdvanceAfterPlayError(playError)) {
+            advanceAfterFailure();
+          }
         }
       } finally {
         if (request === playRequestRef.current) setLoading(false);
@@ -440,7 +462,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [current, finished, playing, play],
   );
 
-  playRef.current = (track) => void play(track);
+  playRef.current = (track, autoAdvance) => void play(track, undefined, autoAdvance);
 
   useEffect(() => {
     mediaActionsRef.current = {
