@@ -267,7 +267,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const currentIndex = queueRef.current.findIndex((track) => track.id === currentTrack.id);
     const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
     if (next) {
-      playRef.current(next);
+      playRef.current(next, true);
       return;
     }
     setPlaying(false);
@@ -326,6 +326,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           youtubeControlsRef.current?.play();
           setPlaying(true);
           setLoading(!youtubeControlsRef.current);
+          return;
+        }
+        if (current?.mediaSource === "youtube") {
+          setCurrent(next);
+          currentRef.current = next;
+          youtubeEndHandledRef.current = next.id;
+          setProgress(0);
+          setDuration(0);
+          setLoading(true);
+          setPlaying(true);
           return;
         }
         audio.pause();

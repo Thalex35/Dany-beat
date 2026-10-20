@@ -37,7 +37,6 @@ export function PlayerBar() {
       <div className="mx-auto flex h-22 max-w-5xl items-center gap-2 rounded-xl bg-surface/95 p-1 shadow-2xl ring-1 ring-border backdrop-blur-xl sm:gap-3">
           {current.mediaSource === "youtube" && current.youtubeUrl ? (
             <YoutubeEmbed
-              key={current.id}
               url={current.youtubeUrl}
               title={current.title}
               autoPlay

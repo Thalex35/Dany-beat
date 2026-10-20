@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 
 import type { YoutubeControls } from "@/lib/player";
-import { youtubeEmbedUrl } from "@/lib/youtube";
+import { getYoutubeVideoId, youtubeEmbedUrl } from "@/lib/youtube";
 
 type YouTubePlayer = {
   destroy: () => void;
@@ -12,6 +12,8 @@ type YouTubePlayer = {
   setVolume: (volume: number) => void;
   getCurrentTime: () => number;
   getDuration: () => number;
+  getVideoUrl: () => string;
+  loadVideoById: (videoId: string) => void;
 };
 
 type YouTubeApi = {
@@ -20,8 +22,8 @@ type YouTubeApi = {
     options: {
       events: {
         onReady: (event: { target: YouTubePlayer }) => void;
-        onStateChange: (event: { data: number }) => void;
-        onError: () => void;
+        onStateChange: (event: { data: number; target: YouTubePlayer }) => void;
+        onError: (event: { target: YouTubePlayer }) => void;
       };
     },
   ) => YouTubePlayer;
@@ -95,7 +97,16 @@ export function YoutubeEmbed({
   const onEndedRef = useRef(onEnded);
   const onProgressRef = useRef(onProgress);
   const onErrorRef = useRef(onError);
+  const videoId = getYoutubeVideoId(url);
   const embedUrl = youtubeEmbedUrl(url, { enableApi: true, autoPlay, controls: !hideControls });
+  const initialEmbedUrlRef = useRef(embedUrl);
+  const videoIdRef = useRef(videoId);
+  const titleRef = useRef(title);
+  const playerRef = useRef<YouTubePlayer | null>(null);
+  const playerReadyRef = useRef(false);
+  const loadedVideoIdRef = useRef(videoId);
+  videoIdRef.current = videoId;
+  titleRef.current = title;
 
   useEffect(() => {
     onControlsRef.current = onControls;
@@ -107,7 +118,8 @@ export function YoutubeEmbed({
   }, [onControls, onEnded, onError, onPause, onPlay, onProgress]);
 
   useEffect(() => {
-    if (!embedUrl) return;
+    const initialEmbedUrl = initialEmbedUrlRef.current;
+    if (!initialEmbedUrl) return;
     const container = playerContainerRef.current;
     if (!container) return;
 
@@ -116,8 +128,8 @@ export function YoutubeEmbed({
     let progressTimer: number | null = null;
     const iframe = document.createElement("iframe");
     iframe.id = iframeId;
-    iframe.src = embedUrl;
-    iframe.title = `YouTube player: ${title}`;
+    iframe.src = initialEmbedUrl;
+    iframe.title = `YouTube player: ${titleRef.current}`;
     iframe.allow =
       "autoplay; accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share";
     iframe.allowFullscreen = true;
@@ -137,7 +149,14 @@ export function YoutubeEmbed({
                 target.destroy();
                 return;
               }
-              target.getIframe().title = `YouTube player: ${title}`;
+              playerRef.current = target;
+              playerReadyRef.current = true;
+              const currentVideoId = videoIdRef.current;
+              if (currentVideoId && currentVideoId !== loadedVideoIdRef.current) {
+                target.loadVideoById(currentVideoId);
+                loadedVideoIdRef.current = currentVideoId;
+              }
+              target.getIframe().title = `YouTube player: ${titleRef.current}`;
               const controls: YoutubeControls = {
                 play: () => target.playVideo(),
                 pause: () => target.pauseVideo(),
@@ -146,7 +165,8 @@ export function YoutubeEmbed({
               };
               onControlsRef.current?.(controls);
             },
-            onStateChange: ({ data }) => {
+            onStateChange: ({ data, target }) => {
+              if (getYoutubeVideoId(target.getVideoUrl()) !== videoIdRef.current) return;
               if (data === youtube.PlayerState.PLAYING) {
                 onPlayRef.current?.();
                 if (progressTimer === null) {
@@ -162,7 +182,11 @@ export function YoutubeEmbed({
                 if (data === youtube.PlayerState.ENDED) onEndedRef.current?.();
               }
             },
-            onError: () => onErrorRef.current?.(),
+            onError: ({ target }) => {
+              if (getYoutubeVideoId(target.getVideoUrl()) === videoIdRef.current) {
+                onErrorRef.current?.();
+              }
+            },
           },
         });
       })
@@ -173,12 +197,25 @@ export function YoutubeEmbed({
 
     return () => {
       disposed = true;
+      playerReadyRef.current = false;
+      playerRef.current = null;
       if (progressTimer !== null) window.clearInterval(progressTimer);
       onControlsRef.current?.(null);
       player?.destroy();
       container.replaceChildren();
     };
-  }, [embedUrl, iframeId, title]);
+  }, [iframeId]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || !playerReadyRef.current || !videoId) return;
+
+    player.getIframe().title = `YouTube player: ${title}`;
+    if (videoId === loadedVideoIdRef.current) return;
+
+    player.loadVideoById(videoId);
+    loadedVideoIdRef.current = videoId;
+  }, [title, videoId]);
 
   if (!embedUrl) return null;
 
