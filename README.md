@@ -9,7 +9,6 @@ Online payments are not enabled. Purchase inquiries are handled through WhatsApp
 - Responsive public pages for the home page, beat catalogue, beat details, about, and contact.
 - Catalogue search and filters for beat discovery.
 - Audio previews for uploaded beats and YouTube-backed tracks.
-- Multilingual AI site-support chat provided by the Webnav widget.
 - A shared player with controls that remains available while navigating between pages.
 - Supabase authentication, user profiles, likes, and comments.
 - Beat licensing and cart requests, with purchase inquiries directed to WhatsApp.
@@ -51,9 +50,6 @@ lock-screen controls are not guaranteed. Returning to the tab never starts YouTu
 its own. YouTube decides which eligible embedded playbacks count as views; the app does not
 simulate engagement or guarantee a view.
 
-The public site loads the Webnav chat widget from `widget.webnav.ai`, configured to learn
-from `https://dany-beat.vercel.app`. Visitor messages are processed by that external service;
-the widget is intended for site support and does not guarantee general-purpose answers.
 
 
 ## Stack
