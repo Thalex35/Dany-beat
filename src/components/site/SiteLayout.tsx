@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { Header } from "@/components/site/Header";
-import { BeatAssistant } from "@/components/site/BeatAssistant";
 import { usePlayer } from "@/lib/player";
 import { useSettings } from "@/lib/settings";
 
@@ -120,7 +119,6 @@ export function SiteLayout({ children }: { children: ReactNode }) {
       <Header />
       <main className={`flex-1 ${bottomPadding}`}>{children}</main>
       <Footer />
-      <BeatAssistant />
     </div>
   );
 }
