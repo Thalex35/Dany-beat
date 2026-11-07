@@ -509,6 +509,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [current, finished, playing, play],
   );
 
+  const next = useCallback(() => {
+    const queue = queueRef.current;
+    const index = queue.findIndex((track) => track.id === currentRef.current?.id);
+    const following = index >= 0 ? queue[index + 1] : undefined;
+    if (following) playRef.current(following);
+  }, []);
+
+  const previous = useCallback(() => {
+    const track = currentRef.current;
+    if (!track) return;
+    if (progressRef.current > 3) {
+      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
+      else if (audioRef.current) audioRef.current.currentTime = 0;
+      setProgress(0);
+      return;
+    }
+
+    const queue = queueRef.current;
+    const index = queue.findIndex((item) => item.id === track.id);
+    const preceding = queue[index - 1];
+    if (preceding) playRef.current(preceding);
+    else {
+      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
+      else if (audioRef.current) audioRef.current.currentTime = 0;
+      setProgress(0);
+    }
+  }, []);
+
   playRef.current = (track, autoAdvance) => void play(track, undefined, autoAdvance);
 
   useEffect(() => {
@@ -662,34 +690,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const setAutoPlayNext = useCallback((value: boolean) => {
     autoPlayNextRef.current = value;
     setAutoPlayNextState(value);
-  }, []);
-
-  const next = useCallback(() => {
-    const queue = queueRef.current;
-    const index = queue.findIndex((track) => track.id === currentRef.current?.id);
-    const following = index >= 0 ? queue[index + 1] : undefined;
-    if (following) playRef.current(following);
-  }, []);
-
-  const previous = useCallback(() => {
-    const track = currentRef.current;
-    if (!track) return;
-    if (progressRef.current > 3) {
-      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
-      else if (audioRef.current) audioRef.current.currentTime = 0;
-      setProgress(0);
-      return;
-    }
-
-    const queue = queueRef.current;
-    const index = queue.findIndex((item) => item.id === track.id);
-    const preceding = queue[index - 1];
-    if (preceding) playRef.current(preceding);
-    else {
-      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
-      else if (audioRef.current) audioRef.current.currentTime = 0;
-      setProgress(0);
-    }
   }, []);
 
   const stop = useCallback(() => {
