@@ -52,7 +52,7 @@ export function PlayerBar() {
       <div
         className={`mx-auto max-w-5xl items-center rounded-xl bg-surface/95 shadow-2xl ring-1 ring-border backdrop-blur-xl ${
           isYoutube
-            ? "flex w-full flex-col gap-2 p-2 sm:h-[216px] sm:flex-row sm:gap-3"
+            ? "flex w-full flex-col gap-2 p-2 sm:h-[144px] sm:flex-row sm:gap-3"
             : "grid h-24 grid-cols-[48px_minmax(0,1fr)] grid-rows-[20px_28px_24px] gap-x-2 gap-y-1 p-2 sm:flex sm:h-22 sm:gap-3 sm:p-1"
         }`}
       >
@@ -60,7 +60,7 @@ export function PlayerBar() {
           <YoutubeEmbed
             url={current.youtubeUrl}
             title={current.title}
-            className="size-[200px] shrink-0"
+            className="size-[128px] shrink-0"
             onControls={registerYoutubeControls}
             onPlay={() => setYoutubePlaying(true)}
             onPause={() => setYoutubePlaying(false)}

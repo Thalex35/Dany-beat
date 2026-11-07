@@ -111,7 +111,7 @@ export function SiteLayout({ children }: { children: ReactNode }) {
   const { current } = usePlayer();
   const bottomPadding =
     current?.mediaSource === "youtube" && current.youtubeUrl
-      ? "pb-[320px] sm:pb-[232px]"
+      ? "pb-[320px] sm:pb-[160px]"
       : current
         ? "pb-28"
         : "pb-10";
