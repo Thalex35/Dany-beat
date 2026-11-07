@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 
 import { Cover } from "@/components/site/Cover";
-import { YoutubeEmbed } from "@/components/site/YoutubeEmbed";
 import { Spinner } from "@/components/ui/states";
 import { formatTime } from "@/lib/beats";
 import { usePlayer } from "@/lib/player";
@@ -35,35 +34,13 @@ export function PlayerBar() {
     setAutoPlayNext,
     next,
     previous,
-    registerYoutubeControls,
-    setYoutubePlaying,
-    setYoutubeProgress,
-    setYoutubeVolume,
-    setYoutubeError,
-    finishYoutube,
     stop,
   } = usePlayer();
 
   if (!current) return null;
-  const isYoutube = current.mediaSource === "youtube" && Boolean(current.youtubeUrl);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 px-2 pb-2 sm:px-4">
-      {isYoutube && current.youtubeUrl ? (
-        <div className="mx-auto mb-2 w-full max-w-[480px] overflow-hidden rounded-xl ring-1 ring-border shadow-2xl">
-          <YoutubeEmbed
-            url={current.youtubeUrl}
-            title={current.title}
-            onControls={registerYoutubeControls}
-            onPlay={() => setYoutubePlaying(true)}
-            onPause={() => setYoutubePlaying(false)}
-            onEnded={finishYoutube}
-            onProgress={setYoutubeProgress}
-            onVolume={setYoutubeVolume}
-            onError={setYoutubeError}
-          />
-        </div>
-      ) : null}
       <div
         className="mx-auto grid h-24 max-w-5xl grid-cols-[48px_minmax(0,1fr)] grid-rows-[20px_28px_24px] items-center gap-x-2 gap-y-1 rounded-xl bg-surface/95 p-2 shadow-2xl ring-1 ring-border backdrop-blur-xl sm:flex sm:h-22 sm:gap-3 sm:p-1"
       >

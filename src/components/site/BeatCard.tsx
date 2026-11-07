@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Download, Ear, Pause, Play, RotateCcw } from "lucide-react";
+import { Download, Ear, ExternalLink, Pause, Play, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Cover } from "@/components/site/Cover";
@@ -141,7 +141,7 @@ export function BeatCard({
               : isPlaying
                 ? `Mettre ${beat.title} en pause`
                 : usesYoutubePlayback
-                  ? `Lire ${beat.title} sur YouTube`
+                  ? `Ouvrir ${beat.title} sur YouTube`
                   : `Écouter ${beat.title}`
           }
           className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
@@ -150,6 +150,8 @@ export function BeatCard({
             <RotateCcw className="size-4" />
           ) : isPlaying ? (
             <Pause className="size-4" />
+          ) : usesYoutubePlayback ? (
+            <ExternalLink className="size-4" />
           ) : (
             <Play className="size-4" />
           )}

@@ -1,4 +1,4 @@
-import { Bot, MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
+import { Bot, ExternalLink, MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Cover } from "@/components/site/Cover";
@@ -215,7 +215,9 @@ export function BeatAssistant() {
                       aria-label={
                         current?.id === beat.id && playing
                           ? `Mettre ${beat.title} en pause`
-                          : `Lire ${beat.title}`
+                          : beat.media_source === "youtube" && !beat.preview_path
+                            ? `Ouvrir ${beat.title} sur YouTube`
+                            : `Lire ${beat.title}`
                       }
                       className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
                       onClick={() => {
@@ -227,6 +229,8 @@ export function BeatAssistant() {
                         <Pause className="size-3.5" />
                       ) : current?.id === beat.id && finished ? (
                         <RotateCcw className="size-3.5" />
+                      ) : beat.media_source === "youtube" && !beat.preview_path ? (
+                        <ExternalLink className="size-3.5" />
                       ) : (
                         <Play className="size-3.5" />
                       )}

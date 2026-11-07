@@ -37,14 +37,6 @@ export type PlayerTrack = {
   youtubeUrl?: string | null;
 };
 
-export type YoutubeControls = {
-  play: () => void;
-  pause: () => void;
-  seek: (seconds: number) => void;
-  setVolume: (value: number) => void;
-  loadVideo: (videoId: string) => void;
-};
-
 export function playerTrackFromBeat(beat: {
   id: string;
   title: string;
@@ -86,12 +78,6 @@ type PlayerValue = {
   setVolume: (value: number) => void;
   next: () => void;
   previous: () => void;
-  registerYoutubeControls: (controls: YoutubeControls | null) => void;
-  setYoutubePlaying: (value: boolean) => void;
-  setYoutubeProgress: (progress: number, duration: number) => void;
-  setYoutubeVolume: (volume: number) => void;
-  setYoutubeError: (code?: number) => void;
-  finishYoutube: () => void;
   stop: () => void;
 };
 
@@ -133,14 +119,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [autoPlayNext, setAutoPlayNextState] = useState(false);
   const queueRef = useRef<PlayerTrack[]>([]);
   const currentRef = useRef<PlayerTrack | null>(null);
-  const youtubeControlsRef = useRef<YoutubeControls | null>(null);
   const loopRef = useRef(false);
   const autoPlayNextRef = useRef(false);
   const playRef = useRef<(track: PlayerTrack, autoAdvance?: boolean) => void>(() => undefined);
   const playRequestRef = useRef(0);
   const previewUrlsRef = useRef(new Map<string, { path: string; url: string; expiresAt: number }>());
   const endedRequestRef = useRef<number | null>(null);
-  const youtubeEndHandledRef = useRef<string | null>(null);
   const mediaActionsRef = useRef({
     play: () => {},
     pause: () => {},
@@ -148,14 +132,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     previous: () => {},
     seek: (_seconds: number) => {},
   });
-  const playingRef = useRef(playing);
   const progressRef = useRef(progress);
   const durationRef = useRef(duration);
-  const volumeRef = useRef(volume);
-  playingRef.current = playing;
   progressRef.current = progress;
   durationRef.current = duration;
-  volumeRef.current = volume;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -165,7 +145,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onMeta = () => setDuration(audio.duration || 0);
     const onEnd = () => {
       const endedTrack = currentRef.current;
-      if (!endedTrack || endedTrack.mediaSource === "youtube") return;
+      if (!endedTrack) return;
       const request = playRequestRef.current;
       if (endedRequestRef.current === request) return;
       endedRequestRef.current = request;
@@ -185,7 +165,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         (track) => track.id === endedTrack.id,
       );
       const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
-      if (next && shouldAutoAdvanceToNext(autoPlayNextRef.current, true)) {
+      if (
+        next?.mediaSource !== "youtube" &&
+        next &&
+        shouldAutoAdvanceToNext(autoPlayNextRef.current, true)
+      ) {
         playRef.current(next, true);
         return;
       }
@@ -215,7 +199,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener("error", onErr);
     const detachEnded = listenForAudioEnded(audio, onEnd);
     const detachLifecycle = syncPlaybackLifecycle(audio, document, window, (snapshot) => {
-      if (currentRef.current?.mediaSource === "youtube") return;
       setProgress(snapshot.currentTime);
       setDuration(snapshot.duration);
       setPlaying(snapshot.playing);
@@ -232,75 +215,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const registerYoutubeControls = useCallback((controls: YoutubeControls | null) => {
-    youtubeControlsRef.current = controls;
-    if (!controls) return;
-    controls.setVolume(volumeRef.current);
-    setLoading(false);
-    if (playingRef.current) controls.play();
-    else controls.pause();
-  }, []);
-
-  const setYoutubePlaying = useCallback((value: boolean) => {
-    setPlaying(value);
-    setLoading(false);
-    if (value) youtubeEndHandledRef.current = null;
-    if (value && currentRef.current) {
-      void track("beat_play", { beatId: currentRef.current.id, once: true });
-    }
-  }, []);
-
-  const setYoutubeProgress = useCallback((nextProgress: number, nextDuration: number) => {
-    setProgress(nextProgress);
-    setDuration(nextDuration);
-  }, []);
-
-  const setYoutubeVolume = useCallback((nextVolume: number) => {
-    setVolumeState(nextVolume);
-  }, []);
-
-  const setYoutubeError = useCallback((code?: number) => {
-    const messages: Record<number, string> = {
-      2: "L'URL de cette vidéo YouTube est invalide.",
-      5: "La vidéo YouTube ne peut pas être lue dans ce navigateur.",
-      100: "Cette vidéo YouTube est indisponible ou privée.",
-      101: "Le propriétaire de cette vidéo n'autorise pas son intégration.",
-      150: "Le propriétaire de cette vidéo n'autorise pas son intégration.",
-      153: "YouTube n'a pas pu vérifier l'origine de cette requête.",
-    };
-    setError(
-      typeof code === "number"
-        ? (messages[code] ?? "La vidéo YouTube n'a pas pu être chargée.")
-        : "Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.",
-    );
-    setPlaying(false);
-    setLoading(false);
-  }, []);
-
-  const finishYoutube = useCallback(() => {
-    const currentTrack = currentRef.current;
-    if (!currentTrack || currentTrack.mediaSource !== "youtube") return;
-    if (youtubeEndHandledRef.current === currentTrack.id) return;
-    youtubeEndHandledRef.current = currentTrack.id;
-    if (loopRef.current) {
-      youtubeControlsRef.current?.seek(0);
-      youtubeControlsRef.current?.play();
-      setProgress(0);
-      setPlaying(true);
-      return;
-    }
-    const currentIndex = queueRef.current.findIndex((track) => track.id === currentTrack.id);
-    const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
-    if (next && shouldAutoAdvanceToNext(autoPlayNextRef.current, true)) {
-      playRef.current(next, true);
-      return;
-    }
-    setPlaying(false);
-    setFinished(true);
-  }, []);
-
   const play = useCallback(
     async (next: PlayerTrack, queue?: PlayerTrack[], autoAdvance = false) => {
+      if (next.mediaSource === "youtube") {
+        if (!next.youtubeUrl || !getYoutubeVideoId(next.youtubeUrl)) {
+          setError("Aucune URL YouTube disponible pour ce beat.");
+          return;
+        }
+        if (autoAdvance) return;
+
+        playRequestRef.current += 1;
+        endedRequestRef.current = null;
+        const audio = audioRef.current;
+        audio?.pause();
+        audio?.removeAttribute("src");
+        audio?.load();
+        setError(null);
+        setFinished(false);
+        setLoading(false);
+        setPlaying(false);
+        setProgress(0);
+        setDuration(0);
+        setCurrent(null);
+        currentRef.current = null;
+        queueRef.current = [];
+        window.open(next.youtubeUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       const audio = audioRef.current;
       if (!audio) return;
       const advanceAfterFailure = () => {
@@ -310,7 +252,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       };
       const request = ++playRequestRef.current;
       endedRequestRef.current = null;
-      youtubeEndHandledRef.current = null;
       if (queue) queueRef.current = queue;
       if (!queueRef.current.some((track) => track.id === next.id)) {
         queueRef.current = queue ? [...queue, next] : [next];
@@ -337,57 +278,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setError(null);
       setFinished(false);
 
-      if (next.mediaSource === "youtube") {
-        if (!next.youtubeUrl || !getYoutubeVideoId(next.youtubeUrl)) {
-          setError("Aucune URL YouTube disponible pour ce beat.");
-          if (autoAdvance) advanceAfterFailure();
-          return;
-        }
-        if (current?.id === next.id && current.mediaSource === "youtube") {
-          if (finished) {
-            youtubeControlsRef.current?.seek(0);
-            setProgress(0);
-          }
-          youtubeControlsRef.current?.play();
-          setPlaying(true);
-          setLoading(!youtubeControlsRef.current);
-          return;
-        }
-        if (current?.mediaSource === "youtube") {
-          const videoId = getYoutubeVideoId(next.youtubeUrl);
-          if (!videoId || !youtubeControlsRef.current) {
-            setError("Le lecteur YouTube n'est pas prêt. Appuyez sur Lire pour reprendre.");
-            setPlaying(false);
-            setLoading(false);
-            return;
-          }
-          youtubeControlsRef.current.loadVideo(videoId);
-          setCurrent(next);
-          currentRef.current = next;
-          youtubeEndHandledRef.current = next.id;
-          setProgress(0);
-          setDuration(0);
-          setLoading(true);
-          setPlaying(true);
-          return;
-        }
-        audio.pause();
-        setPlaying(false);
-        audio.removeAttribute("src");
-        audio.load();
-        youtubeControlsRef.current?.pause();
-        youtubeControlsRef.current = null;
-        setCurrent(next);
-        currentRef.current = next;
-        setProgress(0);
-        setDuration(0);
-        setLoading(true);
-        setPlaying(true);
-        return;
-      }
-
-      youtubeControlsRef.current?.pause();
-      youtubeControlsRef.current = null;
       const cachedPreview = previewUrlsRef.current.get(next.id);
       const refreshUrl = Boolean(audio.error);
       const cachedUrl =
@@ -479,23 +369,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void play(next);
         return;
       }
-      if (current?.mediaSource === "youtube") {
-        if (playing) {
-          youtubeControlsRef.current?.pause();
-          setPlaying(false);
-        } else {
-          setError(null);
-          if (finished) {
-            youtubeControlsRef.current?.seek(0);
-            setProgress(0);
-            setFinished(false);
-          }
-          youtubeControlsRef.current?.play();
-          setPlaying(true);
-          setLoading(!youtubeControlsRef.current);
-        }
-        return;
-      }
       if (playing) {
         audio.pause();
         setPlaying(false);
@@ -517,8 +390,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const track = currentRef.current;
     if (!track) return;
     if (progressRef.current > 3) {
-      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
-      else if (audioRef.current) audioRef.current.currentTime = 0;
+      if (audioRef.current) audioRef.current.currentTime = 0;
       setProgress(0);
       return;
     }
@@ -528,8 +400,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const preceding = queue[index - 1];
     if (preceding) playRef.current(preceding);
     else {
-      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
-      else if (audioRef.current) audioRef.current.currentTime = 0;
+      if (audioRef.current) audioRef.current.currentTime = 0;
       setProgress(0);
     }
   }, []);
@@ -541,22 +412,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       play: () => {
         const track = currentRef.current;
         if (!track) return;
-        if (track.mediaSource === "youtube") {
-          if (finished) {
-            youtubeControlsRef.current?.seek(0);
-            setProgress(0);
-            setFinished(false);
-          }
-          youtubeControlsRef.current?.play();
-          setPlaying(true);
-          setLoading(!youtubeControlsRef.current);
-        } else {
-          void playRef.current(track);
-        }
+        void playRef.current(track);
       },
       pause: () => {
-        if (currentRef.current?.mediaSource === "youtube") youtubeControlsRef.current?.pause();
-        else audioRef.current?.pause();
+        audioRef.current?.pause();
         setPlaying(false);
       },
       next,
@@ -567,9 +426,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           durationRef.current > 0
             ? Math.min(durationRef.current, safeSeconds)
             : safeSeconds;
-        if (currentRef.current?.mediaSource === "youtube")
-          youtubeControlsRef.current?.seek(position);
-        else if (audioRef.current) audioRef.current.currentTime = position;
+        if (audioRef.current) audioRef.current.currentTime = position;
         setProgress(position);
       },
     };
@@ -661,11 +518,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [current, duration, playing, progress]);
 
   const seek = useCallback((seconds: number) => {
-    if (currentRef.current?.mediaSource === "youtube") {
-      youtubeControlsRef.current?.seek(seconds);
-      setProgress(seconds);
-      return;
-    }
     const audio = audioRef.current;
     if (!audio) return;
     audio.currentTime = seconds;
@@ -675,7 +527,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const setVolume = useCallback((value: number) => {
     const audio = audioRef.current;
     if (audio) audio.volume = value;
-    youtubeControlsRef.current?.setVolume(value);
     setVolumeState(value);
   }, []);
 
@@ -696,8 +547,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.pause();
       audio.removeAttribute("src");
     }
-    youtubeControlsRef.current?.pause();
-    youtubeControlsRef.current = null;
     setPlaying(false);
     setFinished(false);
     setCurrent(null);
@@ -726,12 +575,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setVolume,
         next,
         previous,
-        registerYoutubeControls,
-        setYoutubePlaying,
-        setYoutubeProgress,
-        setYoutubeVolume,
-        setYoutubeError,
-        finishYoutube,
         stop,
       }}
     >

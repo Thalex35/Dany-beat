@@ -244,7 +244,7 @@ function BeatDetailPage() {
                   : finished && isCurrent
                     ? "Rejouer"
                     : usesYoutubePlayback
-                      ? "Lire sur YouTube"
+                      ? "Ouvrir sur YouTube"
                       : "Écouter l'extrait"}
               </Button>
               {s ? (

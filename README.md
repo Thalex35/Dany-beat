@@ -26,9 +26,8 @@ remain network requests. Installation requires HTTPS in production (or `localhos
 
 The shared player publishes track metadata and playback, seek, and queue actions through the
 Media Session API where the browser supports them. Browser and operating-system policies still
-determine whether playback continues while the app is in the background. YouTube-backed tracks
-may be suspended by their embedded player or by mobile browser restrictions. On iPhone and
-iPad, install from the browser's share menu using “Add to Home Screen”.
+determine whether playback continues while the app is in the background. On iPhone and iPad,
+install from the browser's share menu using “Add to Home Screen”.
 
 Uploaded previews use one persistent, DOM-mounted HTML audio element in the root-level shared
 player. Client-side route changes do not replace the player or pause audio. Visibility changes
@@ -40,15 +39,10 @@ native HTML audio and Media Session may continue playback and expose lock-screen
 the browser, operating system, power-saving settings, network, and device can still suspend or
 terminate background work. This behavior must be verified on physical devices.
 
-YouTube-backed beats use the YouTube iframe player only when no uploaded preview is available.
-The YouTube player remains visible with YouTube's standard controls alongside the custom player.
-Playback starts only after a listener chooses a beat and does not automatically start another
-beat unless the listener enables Auto in the player. The app does not pause YouTube playback
-only because the tab becomes hidden, but the browser, operating system, or YouTube may still
-suspend it. Closing or refreshing the page stops playback; continuous screen-off playback and
-lock-screen controls are not guaranteed. Returning to the tab never starts YouTube playback on
-its own. YouTube decides which eligible embedded playbacks count as views; the app does not
-simulate engagement or guarantee a view.
+YouTube-backed beats use an uploaded preview in the site player when one is available. If there
+is no preview, choosing the beat opens its YouTube link in a new tab; YouTube playback does not
+run inside the site player. Automatic next-beat playback applies only to uploaded previews, and
+YouTube links are opened only after a listener chooses them.
 
 
 
