@@ -146,11 +146,6 @@ function RootShell({ children }: { children: ReactNode }) {
       <body>
         {children}
         <Scripts />
-        <script
-          src="https://widget.webnav.ai/widget/chat-widget.js"
-          data-base-url="https://dany-beat.vercel.app"
-          data-theme="dark"
-        />
       </body>
     </html>
   );
