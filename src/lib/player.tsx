@@ -130,12 +130,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(0.9);
   const [loop, setLoopState] = useState(false);
-  const [autoPlayNext, setAutoPlayNextState] = useState(false);
+  const [autoPlayNext, setAutoPlayNextState] = useState(true);
   const queueRef = useRef<PlayerTrack[]>([]);
   const currentRef = useRef<PlayerTrack | null>(null);
   const youtubeControlsRef = useRef<YoutubeControls | null>(null);
   const loopRef = useRef(false);
-  const autoPlayNextRef = useRef(false);
+  const autoPlayNextRef = useRef(true);
   const playRef = useRef<(track: PlayerTrack, autoAdvance?: boolean) => void>(() => undefined);
   const playRequestRef = useRef(0);
   const previewUrlsRef = useRef(new Map<string, { path: string; url: string; expiresAt: number }>());

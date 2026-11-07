@@ -43,7 +43,7 @@ terminate background work. This behavior must be verified on physical devices.
 YouTube-backed beats use the YouTube iframe player only when no uploaded preview is available.
 The YouTube player remains visible with YouTube's standard controls alongside the custom player.
 Playback starts only after a listener chooses a beat and does not automatically start another
-beat unless the listener enables Auto in the player. The app does not pause YouTube playback
+beat unless the listener disables Auto in the player. The app does not pause YouTube playback
 only because the tab becomes hidden, but the browser, operating system, or YouTube may still
 suspend it. Closing or refreshing the page stops playback; continuous screen-off playback and
 lock-screen controls are not guaranteed. Returning to the tab never starts YouTube playback on
