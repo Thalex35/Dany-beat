@@ -8,7 +8,7 @@ Online payments are not enabled. Purchase inquiries are handled through WhatsApp
 
 - Responsive public pages for the home page, beat catalogue, beat details, about, and contact.
 - Catalogue search and filters for beat discovery.
-- YouTube playback for YouTube-backed beats, controlled through the shared player.
+- Audio previews for uploaded beats and YouTube-backed tracks.
 - A shared player with controls that remains available while navigating between pages.
 - Supabase authentication, user profiles, likes, and comments.
 - Beat licensing and cart requests, with purchase inquiries directed to WhatsApp.
@@ -26,8 +26,9 @@ remain network requests. Installation requires HTTPS in production (or `localhos
 
 The shared player publishes track metadata and playback, seek, and queue actions through the
 Media Session API where the browser supports them. Browser and operating-system policies still
-determine whether playback continues while the app is in the background. On iPhone and iPad,
-install from the browser's share menu using “Add to Home Screen”.
+determine whether playback continues while the app is in the background. YouTube-backed tracks
+may be suspended by their embedded player or by mobile browser restrictions. On iPhone and
+iPad, install from the browser's share menu using “Add to Home Screen”.
 
 Uploaded previews use one persistent, DOM-mounted HTML audio element in the root-level shared
 player. Client-side route changes do not replace the player or pause audio. Visibility changes
@@ -39,11 +40,9 @@ native HTML audio and Media Session may continue playback and expose lock-screen
 the browser, operating system, power-saving settings, network, and device can still suspend or
 terminate background work. This behavior must be verified on physical devices.
 
-YouTube-backed beats play in the site through YouTube's embedded player and the shared player
-controls. The embedded video remains visible in a compact 200-by-200-pixel player, as required
-by YouTube's player policies. Beats without a YouTube URL cannot be played.
-
-
+YouTube-backed beats use the YouTube iframe player only when no uploaded preview is available.
+The embed has separate browser and YouTube background-playback restrictions, so continuous
+screen-off playback and lock-screen controls are not guaranteed for those tracks.
 
 ## Stack
 

@@ -21,7 +21,6 @@ import {
 import {
   listenForAudioEnded,
   shouldAutoAdvanceAfterPlayError,
-  shouldAutoAdvanceToNext,
   syncPlaybackLifecycle,
 } from "@/lib/player-lifecycle";
 import { getYoutubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
@@ -62,7 +61,7 @@ export function playerTrackFromBeat(beat: {
     bpm: beat.bpm,
     coverPath: beat.cover_path,
     previewPath: beat.preview_path,
-    mediaSource: beat.media_source,
+    mediaSource: beat.preview_path ? "upload" : beat.media_source,
     youtubeUrl: beat.youtube_url,
   };
 }
@@ -77,20 +76,15 @@ type PlayerValue = {
   duration: number;
   volume: number;
   loop: boolean;
-  autoPlayNext: boolean;
   play: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
   toggle: (track?: PlayerTrack) => void;
   setLoop: (value: boolean) => void;
-  setAutoPlayNext: (value: boolean) => void;
   seek: (seconds: number) => void;
   setVolume: (value: number) => void;
-  next: () => void;
-  previous: () => void;
   registerYoutubeControls: (controls: YoutubeControls | null) => void;
   setYoutubePlaying: (value: boolean) => void;
   setYoutubeProgress: (progress: number, duration: number) => void;
-  setYoutubeVolume: (volume: number) => void;
-  setYoutubeError: (code?: number) => void;
+  setYoutubeError: () => void;
   finishYoutube: () => void;
   stop: () => void;
 };
@@ -130,12 +124,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(0.9);
   const [loop, setLoopState] = useState(false);
-  const [autoPlayNext, setAutoPlayNextState] = useState(false);
   const queueRef = useRef<PlayerTrack[]>([]);
   const currentRef = useRef<PlayerTrack | null>(null);
   const youtubeControlsRef = useRef<YoutubeControls | null>(null);
   const loopRef = useRef(false);
-  const autoPlayNextRef = useRef(false);
   const playRef = useRef<(track: PlayerTrack, autoAdvance?: boolean) => void>(() => undefined);
   const playRequestRef = useRef(0);
   const previewUrlsRef = useRef(new Map<string, { path: string; url: string; expiresAt: number }>());
@@ -185,7 +177,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         (track) => track.id === endedTrack.id,
       );
       const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
-      if (next && shouldAutoAdvanceToNext(autoPlayNextRef.current, true)) {
+      if (next) {
         playRef.current(next, true);
         return;
       }
@@ -255,24 +247,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(nextDuration);
   }, []);
 
-  const setYoutubeVolume = useCallback((nextVolume: number) => {
-    setVolumeState(nextVolume);
-  }, []);
-
-  const setYoutubeError = useCallback((code?: number) => {
-    const messages: Record<number, string> = {
-      2: "L'URL de cette vidéo YouTube est invalide.",
-      5: "La vidéo YouTube ne peut pas être lue dans ce navigateur.",
-      100: "Cette vidéo YouTube est indisponible ou privée.",
-      101: "Le propriétaire de cette vidéo n'autorise pas son intégration.",
-      150: "Le propriétaire de cette vidéo n'autorise pas son intégration.",
-      153: "YouTube n'a pas pu vérifier l'origine de cette requête.",
-    };
-    setError(
-      typeof code === "number"
-        ? (messages[code] ?? "La vidéo YouTube n'a pas pu être chargée.")
-        : "Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.",
-    );
+  const setYoutubeError = useCallback(() => {
+    setError("La vidéo YouTube n'a pas pu être chargée.");
     setPlaying(false);
     setLoading(false);
   }, []);
@@ -291,7 +267,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     const currentIndex = queueRef.current.findIndex((track) => track.id === currentTrack.id);
     const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
-    if (next && shouldAutoAdvanceToNext(autoPlayNextRef.current, true)) {
+    if (next) {
       playRef.current(next, true);
       return;
     }
@@ -364,6 +340,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           youtubeControlsRef.current.loadVideo(videoId);
           setCurrent(next);
           currentRef.current = next;
+          youtubeEndHandledRef.current = next.id;
           setProgress(0);
           setDuration(0);
           setLoading(true);
@@ -483,7 +460,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           youtubeControlsRef.current?.pause();
           setPlaying(false);
         } else {
-          setError(null);
           if (finished) {
             youtubeControlsRef.current?.seek(0);
             setProgress(0);
@@ -504,34 +480,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [current, finished, playing, play],
   );
-
-  const next = useCallback(() => {
-    const queue = queueRef.current;
-    const index = queue.findIndex((track) => track.id === currentRef.current?.id);
-    const following = index >= 0 ? queue[index + 1] : undefined;
-    if (following) playRef.current(following);
-  }, []);
-
-  const previous = useCallback(() => {
-    const track = currentRef.current;
-    if (!track) return;
-    if (progressRef.current > 3) {
-      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
-      else if (audioRef.current) audioRef.current.currentTime = 0;
-      setProgress(0);
-      return;
-    }
-
-    const queue = queueRef.current;
-    const index = queue.findIndex((item) => item.id === track.id);
-    const preceding = queue[index - 1];
-    if (preceding) playRef.current(preceding);
-    else {
-      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
-      else if (audioRef.current) audioRef.current.currentTime = 0;
-      setProgress(0);
-    }
-  }, []);
 
   playRef.current = (track, autoAdvance) => void play(track, undefined, autoAdvance);
 
@@ -558,8 +506,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         else audioRef.current?.pause();
         setPlaying(false);
       },
-      next,
-      previous,
+      next: () => {
+        const queue = queueRef.current;
+        const index = queue.findIndex((track) => track.id === currentRef.current?.id);
+        const next = index >= 0 ? queue[index + 1] : undefined;
+        if (next) playRef.current(next);
+      },
+      previous: () => {
+        const track = currentRef.current;
+        if (!track) return;
+        if (progress > 3) {
+          if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
+          else if (audioRef.current) audioRef.current.currentTime = 0;
+          setProgress(0);
+          return;
+        }
+        const queue = queueRef.current;
+        const index = queue.findIndex((item) => item.id === track.id);
+        const previous = queue[index - 1];
+        if (previous) playRef.current(previous);
+        else {
+          if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
+          else if (audioRef.current) audioRef.current.currentTime = 0;
+          setProgress(0);
+        }
+      },
       seek: (seconds) => {
         const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
         const position =
@@ -572,7 +543,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setProgress(position);
       },
     };
-  }, [duration, finished, next, previous, progress]);
+  }, [duration, finished, progress]);
 
   useEffect(() => {
     const session = getMediaSession();
@@ -683,11 +654,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setLoopState(value);
   }, []);
 
-  const setAutoPlayNext = useCallback((value: boolean) => {
-    autoPlayNextRef.current = value;
-    setAutoPlayNextState(value);
-  }, []);
-
   const stop = useCallback(() => {
     playRequestRef.current += 1;
     const audio = audioRef.current;
@@ -716,19 +682,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         duration,
         volume,
         loop,
-        autoPlayNext,
         play: (t, queue) => void play(t, queue),
         toggle,
         setLoop,
-        setAutoPlayNext,
         seek,
         setVolume,
-        next,
-        previous,
         registerYoutubeControls,
         setYoutubePlaying,
         setYoutubeProgress,
-        setYoutubeVolume,
         setYoutubeError,
         finishYoutube,
         stop,

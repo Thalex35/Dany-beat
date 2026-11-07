@@ -3,6 +3,5 @@ node_modules
 .env
 .output
 .wrangler
-supabase/.temp/
 
 migration/

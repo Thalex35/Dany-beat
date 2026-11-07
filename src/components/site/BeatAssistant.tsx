@@ -212,41 +212,15 @@ export function BeatAssistant() {
                     </div>
                     <button
                       type="button"
-                      disabled={
-                        beat.media_source === "youtube"
-                          ? !beat.youtube_url
-                          : !beat.preview_path
-                      }
                       aria-label={
-                        beat.media_source === "youtube" && beat.youtube_url
-                          ? `Lire ${beat.title} sur YouTube`
-                          : !beat.preview_path
-                          ? `Aucun extrait audio disponible pour ${beat.title}`
-                          : current?.id === beat.id && playing
-                            ? `Mettre ${beat.title} en pause`
-                            : `Lire ${beat.title}`
+                        current?.id === beat.id && playing
+                          ? `Mettre ${beat.title} en pause`
+                          : `Lire ${beat.title}`
                       }
-                      title={
-                        beat.media_source === "youtube" && beat.youtube_url
-                          ? `Lire ${beat.title} sur YouTube`
-                          : beat.preview_path
-                            ? undefined
-                            : "Aucun extrait audio disponible"
-                      }
-                      className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background disabled:cursor-not-allowed disabled:opacity-40"
+                      className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
                       onClick={() => {
                         if (current?.id === beat.id) toggle();
-                        else
-                          play(
-                            playerTrackFromBeat(beat),
-                            recommendations
-                              .filter((recommendedBeat) =>
-                                recommendedBeat.media_source === "youtube"
-                                  ? recommendedBeat.youtube_url
-                                  : recommendedBeat.preview_path,
-                              )
-                              .map(playerTrackFromBeat),
-                          );
+                        else play(playerTrackFromBeat(beat), recommendations.map(playerTrackFromBeat));
                       }}
                     >
                       {current?.id === beat.id && playing ? (
