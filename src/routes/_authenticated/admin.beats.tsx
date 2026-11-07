@@ -529,7 +529,7 @@ function AdminBeats() {
                   <p className="text-sm font-medium">{slot.label}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {slot.bucket === "previews" && form.media_source === "youtube"
-                      ? "MP3 natif pour écouter et enchaîner les beats; le lien YouTube est conservé."
+                      ? "Le lien YouTube sert à la lecture sur le site; l'extrait audio reste facultatif."
                       : slot.hint}
                   </p>
                   <label className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">

@@ -8,7 +8,7 @@ Online payments are not enabled. Purchase inquiries are handled through WhatsApp
 
 - Responsive public pages for the home page, beat catalogue, beat details, about, and contact.
 - Catalogue search and filters for beat discovery.
-- Audio previews for uploaded beats and YouTube-backed tracks.
+- YouTube playback for YouTube-backed beats, controlled through the shared player.
 - A shared player with controls that remains available while navigating between pages.
 - Supabase authentication, user profiles, likes, and comments.
 - Beat licensing and cart requests, with purchase inquiries directed to WhatsApp.
@@ -39,10 +39,9 @@ native HTML audio and Media Session may continue playback and expose lock-screen
 the browser, operating system, power-saving settings, network, and device can still suspend or
 terminate background work. This behavior must be verified on physical devices.
 
-YouTube-backed beats use an uploaded preview in the site player when one is available. If there
-is no preview, choosing the beat opens its YouTube link in a new tab; YouTube playback does not
-run inside the site player. Automatic next-beat playback applies only to uploaded previews, and
-YouTube links are opened only after a listener chooses them.
+YouTube-backed beats play in the site through YouTube's embedded player and the shared player
+controls. The embedded video remains visible in a compact 200-by-200-pixel player, as required
+by YouTube's player policies. Beats without a YouTube URL cannot be played.
 
 
 

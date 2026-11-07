@@ -1,4 +1,4 @@
-import { Bot, ExternalLink, MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
+import { Bot, MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Cover } from "@/components/site/Cover";
@@ -212,25 +212,47 @@ export function BeatAssistant() {
                     </div>
                     <button
                       type="button"
+                      disabled={
+                        beat.media_source === "youtube"
+                          ? !beat.youtube_url
+                          : !beat.preview_path
+                      }
                       aria-label={
-                        current?.id === beat.id && playing
-                          ? `Mettre ${beat.title} en pause`
-                          : beat.media_source === "youtube" && !beat.preview_path
-                            ? `Ouvrir ${beat.title} sur YouTube`
+                        beat.media_source === "youtube" && beat.youtube_url
+                          ? `Lire ${beat.title} sur YouTube`
+                          : !beat.preview_path
+                          ? `Aucun extrait audio disponible pour ${beat.title}`
+                          : current?.id === beat.id && playing
+                            ? `Mettre ${beat.title} en pause`
                             : `Lire ${beat.title}`
                       }
-                      className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
+                      title={
+                        beat.media_source === "youtube" && beat.youtube_url
+                          ? `Lire ${beat.title} sur YouTube`
+                          : beat.preview_path
+                            ? undefined
+                            : "Aucun extrait audio disponible"
+                      }
+                      className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={() => {
                         if (current?.id === beat.id) toggle();
-                        else play(playerTrackFromBeat(beat), recommendations.map(playerTrackFromBeat));
+                        else
+                          play(
+                            playerTrackFromBeat(beat),
+                            recommendations
+                              .filter((recommendedBeat) =>
+                                recommendedBeat.media_source === "youtube"
+                                  ? recommendedBeat.youtube_url
+                                  : recommendedBeat.preview_path,
+                              )
+                              .map(playerTrackFromBeat),
+                          );
                       }}
                     >
                       {current?.id === beat.id && playing ? (
                         <Pause className="size-3.5" />
                       ) : current?.id === beat.id && finished ? (
                         <RotateCcw className="size-3.5" />
-                      ) : beat.media_source === "youtube" && !beat.preview_path ? (
-                        <ExternalLink className="size-3.5" />
                       ) : (
                         <Play className="size-3.5" />
                       )}

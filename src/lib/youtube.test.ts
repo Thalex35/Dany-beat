@@ -31,5 +31,12 @@ describe("YouTube URL helpers", () => {
       "?playsinline=1&rel=0&controls=1&enablejsapi=1&origin=https%3A%2F%2Fdany-beat.vercel.app",
     );
     expect(apiEmbedUrl).not.toContain("autoplay=1");
+    expect(
+      youtubeEmbedUrl(videoUrl, {
+        enableApi: true,
+        autoplay: true,
+        origin: "https://dany-beat.vercel.app",
+      }),
+    ).toContain("&autoplay=1");
   });
 });

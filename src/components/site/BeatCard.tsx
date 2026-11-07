@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Download, Ear, ExternalLink, Pause, Play, RotateCcw } from "lucide-react";
+import { Download, Ear, Pause, Play, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Cover } from "@/components/site/Cover";
@@ -70,13 +70,13 @@ export function BeatCard({
 }) {
   const { current, playing, finished, toggle, play } = usePlayer();
   const isYoutube = beat.media_source === "youtube";
-  const usesYoutubePlayback = isYoutube && !beat.preview_path;
   const track = playerTrackFromBeat(beat);
-  const playerQueue = queue?.map(playerTrackFromBeat);
-  const { data: previewUrl } = useSignedUrl(
-    "previews",
-    usesYoutubePlayback ? null : beat.preview_path,
-  );
+  const playerQueue = queue
+    ?.filter((queuedBeat) =>
+      queuedBeat.media_source === "youtube" ? queuedBeat.youtube_url : queuedBeat.preview_path,
+    )
+    .map(playerTrackFromBeat);
+  const { data: previewUrl } = useSignedUrl("previews", beat.preview_path);
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
 
@@ -131,6 +131,7 @@ export function BeatCard({
       <div className="public-beat-actions flex items-center gap-4">
         <button
           type="button"
+          disabled={isYoutube ? !beat.youtube_url : !beat.preview_path}
           onClick={() => {
             if (isCurrent) toggle();
             else play(track, playerQueue);
@@ -140,18 +141,25 @@ export function BeatCard({
               ? `Rejouer ${beat.title}`
               : isPlaying
                 ? `Mettre ${beat.title} en pause`
-                : usesYoutubePlayback
-                  ? `Ouvrir ${beat.title} sur YouTube`
-                  : `Écouter ${beat.title}`
+                : isYoutube
+                  ? `Lire ${beat.title} sur YouTube`
+                  : beat.preview_path
+                  ? `Écouter ${beat.title}`
+                  : `Aucun extrait audio disponible pour ${beat.title}`
           }
-          className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105"
+          title={
+            isYoutube
+              ? `Lire ${beat.title} sur YouTube`
+              : beat.preview_path
+                ? `Écouter ${beat.title}`
+                : "Aucun extrait audio disponible"
+          }
+          className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {finished && isCurrent ? (
             <RotateCcw className="size-4" />
           ) : isPlaying ? (
             <Pause className="size-4" />
-          ) : usesYoutubePlayback ? (
-            <ExternalLink className="size-4" />
           ) : (
             <Play className="size-4" />
           )}

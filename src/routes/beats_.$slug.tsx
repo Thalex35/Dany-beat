@@ -92,12 +92,8 @@ function BeatDetailPage() {
   const stats = useQuery(beatStatsQuery(beatQuery.data?.id ? [beatQuery.data.id] : []));
   const beat = beatQuery.data ?? null;
   const isYoutube = beat?.media_source === "youtube";
-  const usesYoutubePlayback = isYoutube && !beat?.preview_path;
   const playbackQueue = useQuery({ ...publishedPlaybackQueueQuery, enabled: isYoutube });
-  const previewUrl = useSignedUrl(
-    "previews",
-    usesYoutubePlayback ? null : beat?.preview_path,
-  ).data;
+  const previewUrl = useSignedUrl("previews", beat?.preview_path).data;
 
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
@@ -226,7 +222,14 @@ function BeatDetailPage() {
             <div className="mt-5 flex flex-wrap items-center gap-3 sm:gap-4">
               <Button
                 size="md"
-                disabled={usesYoutubePlayback ? !beat.youtube_url : !beat.preview_path}
+                disabled={isYoutube ? !beat.youtube_url : !beat.preview_path}
+                title={
+                  isYoutube
+                    ? "Lire sur YouTube"
+                    : beat.preview_path
+                      ? undefined
+                      : "Aucun extrait audio disponible"
+                }
                 onClick={() => {
                   if (isCurrent) {
                     toggle();
@@ -234,7 +237,15 @@ function BeatDetailPage() {
                   }
                   play(
                     playerTrackFromBeat(beat),
-                    isYoutube ? playbackQueue.data?.map(playerTrackFromBeat) : undefined,
+                    isYoutube
+                      ? playbackQueue.data
+                          ?.filter((queuedBeat) =>
+                            queuedBeat.media_source === "youtube"
+                              ? queuedBeat.youtube_url
+                              : queuedBeat.preview_path,
+                          )
+                          .map(playerTrackFromBeat)
+                      : undefined,
                   );
                 }}
               >
@@ -243,9 +254,11 @@ function BeatDetailPage() {
                   ? "Mettre en pause"
                   : finished && isCurrent
                     ? "Rejouer"
-                    : usesYoutubePlayback
-                      ? "Ouvrir sur YouTube"
-                      : "Écouter l'extrait"}
+                    : isYoutube
+                      ? "Lire sur YouTube"
+                      : beat.preview_path
+                      ? "Écouter l'extrait"
+                      : "Extrait audio indisponible"}
               </Button>
               {s ? (
                 <LikeButton beatId={beat.id} count={s.likes} />

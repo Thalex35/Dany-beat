@@ -14,15 +14,15 @@ const baseBeat = {
 };
 
 describe("playerTrackFromBeat", () => {
-  it("plays an uploaded preview when a YouTube beat has one", () => {
+  it("uses YouTube playback for YouTube beats even if an uploaded preview exists", () => {
     const track = playerTrackFromBeat({ ...baseBeat, preview_path: "flou/preview.mp3" });
 
-    expect(track.mediaSource).toBe("upload");
+    expect(track.mediaSource).toBe("youtube");
     expect(track.previewPath).toBe("flou/preview.mp3");
     expect(track.youtubeUrl).toBe(baseBeat.youtube_url);
   });
 
-  it("keeps YouTube playback when no preview file is available", () => {
+  it("uses YouTube playback when there is no uploaded preview", () => {
     const track = playerTrackFromBeat(baseBeat);
 
     expect(track.mediaSource).toBe("youtube");

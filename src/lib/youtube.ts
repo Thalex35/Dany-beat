@@ -34,13 +34,14 @@ export function youtubeThumbnailUrl(value: string | null | undefined) {
 
 export function youtubeEmbedUrl(
   value: string | null | undefined,
-  options: { enableApi?: boolean; origin?: string } = {},
+  options: { enableApi?: boolean; autoplay?: boolean; origin?: string } = {},
 ) {
   const videoId = getYoutubeVideoId(value);
   if (!videoId) return null;
 
   const params = new URLSearchParams({ playsinline: "1", rel: "0", controls: "1" });
   if (options.enableApi) params.set("enablejsapi", "1");
+  if (options.autoplay) params.set("autoplay", "1");
   if (options.origin) params.set("origin", options.origin);
   return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 }
