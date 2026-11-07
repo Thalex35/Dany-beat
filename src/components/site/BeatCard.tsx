@@ -86,7 +86,6 @@ export function BeatCard({
         <Link
           to="/beats/$slug"
           params={{ slug: beat.slug }}
-          search={{ autoplay: false }}
           aria-label={`Ouvrir ${beat.title}`}
           className="block h-full w-full"
         >
@@ -115,7 +114,6 @@ export function BeatCard({
             <Link
               to="/beats/$slug"
               params={{ slug: beat.slug }}
-              search={{ autoplay: false }}
               className="premium-link hover:text-primary"
             >
               {beat.title}

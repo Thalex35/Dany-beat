@@ -43,7 +43,6 @@ import { useSettings } from "@/lib/settings";
 import { PUBLIC_CATALOGUE_CACHE_MAX_AGE } from "@/lib/catalogue-cache";
 
 export const Route = createFileRoute("/beats_/$slug")({
-  validateSearch: (search: Record<string, unknown>) => ({ autoplay: search["autoplay"] === true }),
   head: ({ params }) => {
     const name = params.slug.replace(/-/g, " ");
     const title = `${name} — instrumentale | Dany Beats`;
@@ -69,7 +68,6 @@ export const Route = createFileRoute("/beats_/$slug")({
 
 function BeatDetailPage() {
   const { slug } = Route.useParams();
-  const { autoplay } = Route.useSearch();
   const { profile } = useAuth();
   const { data: settings } = useSettings();
   const { current, playing, finished, toggle, play } = usePlayer();
@@ -104,21 +102,6 @@ function BeatDetailPage() {
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
   }, [beat]);
-
-  useEffect(() => {
-    if (!autoplay || !beat || !isYoutube || !beat.youtube_url || !playbackQueue.isSuccess) return;
-    if (current?.id === beat.id) return;
-    play(playerTrackFromBeat(beat), playbackQueue.data.map(playerTrackFromBeat));
-  }, [
-    autoplay,
-    beat,
-    current?.id,
-    isYoutube,
-    play,
-    playbackQueue.data,
-    playbackQueue.isSuccess,
-    previewUrl,
-  ]);
 
   if (beatQuery.isPending) {
     return (

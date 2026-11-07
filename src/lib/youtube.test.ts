@@ -21,13 +21,15 @@ describe("YouTube URL helpers", () => {
     const videoUrl = "https://youtu.be/abcdefghijk";
     expect(youtubeThumbnailUrl(videoUrl)).toBe("https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg");
     expect(youtubeEmbedUrl(videoUrl)).toBe(
-      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0",
+      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&controls=1",
     );
-    expect(youtubeEmbedUrl(videoUrl, { enableApi: true, autoPlay: true })).toBe(
-      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&enablejsapi=1&autoplay=1",
+    const apiEmbedUrl = youtubeEmbedUrl(videoUrl, {
+      enableApi: true,
+      origin: "https://dany-beat.vercel.app",
+    });
+    expect(apiEmbedUrl).toContain(
+      "?playsinline=1&rel=0&controls=1&enablejsapi=1&origin=https%3A%2F%2Fdany-beat.vercel.app",
     );
-    expect(youtubeEmbedUrl(videoUrl, { enableApi: true, autoPlay: true, controls: false })).toBe(
-      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&enablejsapi=1&autoplay=1&controls=0",
-    );
+    expect(apiEmbedUrl).not.toContain("autoplay=1");
   });
 });

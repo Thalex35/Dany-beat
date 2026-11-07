@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   listenForAudioEnded,
   shouldAutoAdvanceAfterPlayError,
+  shouldAutoAdvanceToNext,
   syncPlaybackLifecycle,
 } from "./player-lifecycle";
 
@@ -31,6 +32,12 @@ describe("playback page lifecycle", () => {
     expect(shouldAutoAdvanceAfterPlayError({ name: "NotAllowedError" })).toBe(false);
     expect(shouldAutoAdvanceAfterPlayError({ name: "NotSupportedError" })).toBe(true);
     expect(shouldAutoAdvanceAfterPlayError(new Error("Network error"))).toBe(true);
+  });
+
+  it("only starts the next track when the listener explicitly enables it", () => {
+    expect(shouldAutoAdvanceToNext(false, true)).toBe(false);
+    expect(shouldAutoAdvanceToNext(true, true)).toBe(true);
+    expect(shouldAutoAdvanceToNext(true, false)).toBe(false);
   });
 
   it("keeps audio playing across visibility and page lifecycle events", () => {

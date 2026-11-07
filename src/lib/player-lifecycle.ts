@@ -22,6 +22,10 @@ export function shouldAutoAdvanceAfterPlayError(error: unknown) {
   );
 }
 
+export function shouldAutoAdvanceToNext(enabled: boolean, hasNext: boolean) {
+  return enabled && hasNext;
+}
+
 export function syncPlaybackLifecycle(
   audio: AudioState,
   documentTarget: VisibilityTarget,

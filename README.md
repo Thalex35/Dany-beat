@@ -41,8 +41,13 @@ the browser, operating system, power-saving settings, network, and device can st
 terminate background work. This behavior must be verified on physical devices.
 
 YouTube-backed beats use the YouTube iframe player only when no uploaded preview is available.
-The embed has separate browser and YouTube background-playback restrictions, so continuous
-screen-off playback and lock-screen controls are not guaranteed for those tracks.
+The YouTube player remains visible with YouTube's standard controls alongside the custom player.
+Playback starts only after a listener chooses a beat, pauses when the tab is hidden, and does not
+automatically start another beat unless the listener enables Auto in the player. Refreshing or
+returning to the tab never starts YouTube playback on its own. YouTube decides which eligible
+embedded playbacks count as views; the app does not simulate engagement or guarantee a view.
+YouTube's browser and background-playback restrictions still apply, so continuous screen-off
+playback and lock-screen controls are not guaranteed for those tracks.
 
 ## Stack
 
