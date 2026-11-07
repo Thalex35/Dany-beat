@@ -109,7 +109,12 @@ function Footer() {
 
 export function SiteLayout({ children }: { children: ReactNode }) {
   const { current } = usePlayer();
-  const bottomPadding = current ? "pb-28" : "pb-10";
+  const bottomPadding =
+    current?.mediaSource === "youtube" && current.youtubeUrl
+      ? "pb-[320px] sm:pb-[232px]"
+      : current
+        ? "pb-28"
+        : "pb-10";
   return (
     <div className="flex min-h-screen flex-col">
       <Header />

@@ -45,14 +45,22 @@ export function PlayerBar() {
   } = usePlayer();
 
   if (!current) return null;
+  const isYoutube = current.mediaSource === "youtube" && Boolean(current.youtubeUrl);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 px-2 pb-2 sm:px-4">
-      {current.mediaSource === "youtube" && current.youtubeUrl ? (
-        <div className="mx-auto mb-2 w-full max-w-[480px] overflow-hidden rounded-xl ring-1 ring-border shadow-2xl">
+      <div
+        className={`mx-auto max-w-5xl items-center rounded-xl bg-surface/95 shadow-2xl ring-1 ring-border backdrop-blur-xl ${
+          isYoutube
+            ? "flex w-full flex-col gap-2 p-2 sm:h-[216px] sm:flex-row sm:gap-3"
+            : "grid h-24 grid-cols-[48px_minmax(0,1fr)] grid-rows-[20px_28px_24px] gap-x-2 gap-y-1 p-2 sm:flex sm:h-22 sm:gap-3 sm:p-1"
+        }`}
+      >
+        {isYoutube && current.youtubeUrl ? (
           <YoutubeEmbed
             url={current.youtubeUrl}
             title={current.title}
+            className="size-[200px] shrink-0"
             onControls={registerYoutubeControls}
             onPlay={() => setYoutubePlaying(true)}
             onPause={() => setYoutubePlaying(false)}
@@ -61,23 +69,28 @@ export function PlayerBar() {
             onVolume={setYoutubeVolume}
             onError={setYoutubeError}
           />
-        </div>
-      ) : null}
-      <div className="mx-auto grid h-24 max-w-5xl grid-cols-[48px_minmax(0,1fr)] grid-rows-[20px_28px_24px] items-center gap-x-2 gap-y-1 rounded-xl bg-surface/95 p-2 shadow-2xl ring-1 ring-border backdrop-blur-xl sm:flex sm:h-22 sm:gap-3 sm:p-1">
-        <Link
-          to="/beats/$slug"
-          params={{ slug: current.slug }}
-          className="row-span-3 size-12 shrink-0 overflow-hidden rounded-lg sm:row-span-1 sm:size-20"
-          aria-label={`Ouvrir ${current.title}`}
+        ) : (
+          <Link
+            to="/beats/$slug"
+            params={{ slug: current.slug }}
+            className="row-span-3 size-12 shrink-0 overflow-hidden rounded-lg sm:row-span-1 sm:size-20"
+            aria-label={`Ouvrir ${current.title}`}
+          >
+            <Cover
+              path={current.coverPath}
+              alt=""
+              className="size-full rounded-lg"
+              youtubeUrl={current.youtubeUrl ?? null}
+            />
+          </Link>
+        )}
+        <div
+          className={
+            isYoutube
+              ? "flex w-full min-w-0 flex-col justify-center sm:w-auto sm:flex-1"
+              : "contents sm:flex sm:min-w-0 sm:flex-1 sm:flex-col sm:justify-center"
+          }
         >
-          <Cover
-            path={current.coverPath}
-            alt=""
-            className="size-full rounded-lg"
-            youtubeUrl={current.youtubeUrl ?? null}
-          />
-        </Link>
-        <div className="contents sm:flex sm:min-w-0 sm:flex-1 sm:flex-col sm:justify-center">
           <div className="col-start-2 row-start-1 flex min-w-0 items-baseline gap-2 sm:col-auto sm:row-auto">
             <p className="truncate text-xs font-medium sm:text-sm" title={current.title}>
               {current.title}
@@ -120,7 +133,11 @@ export function PlayerBar() {
             </div>
           </div>
         </div>
-        <div className="col-start-2 row-start-2 flex shrink-0 items-center justify-end gap-1 sm:col-auto sm:row-auto sm:gap-2">
+        <div
+          className={`col-start-2 row-start-2 flex shrink-0 items-center justify-end gap-1 sm:col-auto sm:row-auto ${
+            isYoutube ? "w-full flex-wrap sm:w-auto sm:flex-nowrap" : "sm:gap-2"
+          }`}
+        >
           {error ? (
             <p
               className="hidden min-w-0 flex-1 truncate text-[10px] text-destructive sm:block"

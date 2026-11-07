@@ -237,10 +237,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!controls) return;
     controls.setVolume(volumeRef.current);
     setLoading(false);
-    if (document.visibilityState === "hidden") {
-      controls.pause();
-      setPlaying(false);
-    } else if (playingRef.current) controls.play();
+    if (playingRef.current) controls.play();
     else controls.pause();
   }, []);
 

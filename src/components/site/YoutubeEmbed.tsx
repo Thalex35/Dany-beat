@@ -73,6 +73,7 @@ function loadYouTubeApi() {
 export function YoutubeEmbed({
   url,
   title,
+  className,
   onControls,
   onPlay,
   onPause,
@@ -83,6 +84,7 @@ export function YoutubeEmbed({
 }: {
   url: string;
   title: string;
+  className?: string;
   onControls?: (controls: YoutubeControls | null) => void;
   onPlay?: () => void;
   onPause?: () => void;
@@ -134,10 +136,6 @@ export function YoutubeEmbed({
     let player: YouTubePlayer | null = null;
     let progressTimer: number | null = null;
     let volumeTimer: number | null = null;
-    const pauseWhenHidden = () => {
-      if (document.visibilityState === "hidden") player?.pauseVideo();
-    };
-    document.addEventListener("visibilitychange", pauseWhenHidden);
     const iframe = document.createElement("iframe");
     iframe.id = iframeId;
     iframe.src = initialEmbedUrl;
@@ -221,7 +219,6 @@ export function YoutubeEmbed({
 
     return () => {
       disposed = true;
-      document.removeEventListener("visibilitychange", pauseWhenHidden);
       playerReadyRef.current = false;
       playerRef.current = null;
       if (progressTimer !== null) window.clearInterval(progressTimer);
@@ -246,7 +243,9 @@ export function YoutubeEmbed({
   if (!embedUrl) return null;
 
   return (
-    <div className="aspect-video min-h-[200px] min-w-[200px] w-full overflow-hidden rounded-xl bg-black">
+    <div
+      className={`${className ?? "aspect-video min-h-[200px] min-w-[200px] w-full"} relative overflow-hidden rounded-xl bg-black`}
+    >
       <div ref={playerContainerRef} className="relative size-full" />
     </div>
   );
