@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { playerTrackFromBeat } from "./player";
+import { playerTrackFromBeat, youtubeFallbackTrack } from "./player";
 
 const baseBeat = {
   id: "beat-1",
@@ -28,5 +28,25 @@ describe("playerTrackFromBeat", () => {
     expect(track.mediaSource).toBe("youtube");
     expect(track.previewPath).toBeNull();
     expect(track.youtubeUrl).toBe(baseBeat.youtube_url);
+  });
+
+  it("falls back to the YouTube link when an uploaded preview cannot play", () => {
+    const track = playerTrackFromBeat({ ...baseBeat, preview_path: "flou/preview.mp3" });
+
+    expect(youtubeFallbackTrack(track)).toMatchObject({
+      mediaSource: "youtube",
+      previewPath: "flou/preview.mp3",
+      youtubeUrl: baseBeat.youtube_url,
+    });
+  });
+
+  it("does not fall back without a valid YouTube link", () => {
+    const track = playerTrackFromBeat({
+      ...baseBeat,
+      preview_path: "flou/preview.mp3",
+      youtube_url: null,
+    });
+
+    expect(youtubeFallbackTrack(track)).toBeNull();
   });
 });

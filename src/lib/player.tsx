@@ -69,6 +69,11 @@ export function playerTrackFromBeat(beat: {
   };
 }
 
+export function youtubeFallbackTrack(track: PlayerTrack): PlayerTrack | null {
+  if (track.mediaSource === "youtube" || !getYoutubeVideoId(track.youtubeUrl)) return null;
+  return { ...track, mediaSource: "youtube" };
+}
+
 type PlayerValue = {
   current: PlayerTrack | null;
   youtubeRetryKey: number;
@@ -154,6 +159,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   durationRef.current = duration;
   volumeRef.current = volume;
 
+  const fallbackToYoutube = useCallback((track: PlayerTrack) => {
+    const fallbackTrack = youtubeFallbackTrack(track);
+    if (!fallbackTrack || currentRef.current?.id !== track.id) return false;
+
+    currentRef.current = fallbackTrack;
+    queueRef.current = queueRef.current.map((item) =>
+      item.id === track.id ? fallbackTrack : item,
+    );
+    setCurrent(fallbackTrack);
+    setError(null);
+    setFinished(false);
+    setProgress(0);
+    setDuration(0);
+    setYoutubeRetryKey((key) => key + 1);
+    setLoading(true);
+    setPlaying(true);
+
+    const audio = audioRef.current;
+    audio?.pause();
+    audio?.removeAttribute("src");
+    audio?.load();
+    youtubeControlsRef.current?.pause();
+    youtubeControlsRef.current = null;
+    return true;
+  }, []);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -188,11 +219,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setFinished(false);
     };
     const onPause = () => {
+      if (currentRef.current?.mediaSource === "youtube") return;
       const session = getMediaSession();
       if (session) setMediaSessionPlaybackState(session, "paused");
       setPlaying(false);
     };
     const onErr = () => {
+      const failedTrack = currentRef.current;
+      if (failedTrack?.mediaSource === "youtube") return;
+      if (failedTrack && fallbackToYoutube(failedTrack)) return;
       setError("Cet extrait n'a pas pu être chargé.");
       setPlaying(false);
       setLoading(false);
@@ -219,7 +254,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("error", onErr);
     };
-  }, []);
+  }, [fallbackToYoutube]);
 
   const registerYoutubeControls = useCallback((controls: YoutubeControls | null) => {
     youtubeControlsRef.current = controls;
@@ -374,6 +409,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentRef.current = next;
       setProgress(0);
       setDuration(0);
+      let youtubeFallbackStarted = false;
       try {
         const url =
           cachedUrl ??
@@ -381,8 +417,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           (await signedUrl("previews", next.previewPath, { refresh: refreshUrl }));
         if (request !== playRequestRef.current) return;
         if (!url) {
-          setError("L'extrait audio est indisponible. Réessayez dans un instant.");
-          setPlaying(false);
+          if (fallbackToYoutube(next)) {
+            youtubeFallbackStarted = true;
+          } else {
+            setError("L'extrait audio est indisponible. Réessayez dans un instant.");
+            setPlaying(false);
+          }
           return;
         }
         previewUrlsRef.current.set(next.id, {
@@ -407,14 +447,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void track("beat_play", { beatId: next.id, once: true });
       } catch (playError) {
         if (request === playRequestRef.current) {
-          setError("Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.");
-          setPlaying(false);
+          const alreadyUsingYoutube =
+            currentRef.current?.id === next.id &&
+            currentRef.current.mediaSource === "youtube";
+          if (alreadyUsingYoutube) {
+            youtubeFallbackStarted = true;
+          } else if (
+            !(playError instanceof DOMException && playError.name === "NotAllowedError") &&
+            fallbackToYoutube(next)
+          ) {
+            youtubeFallbackStarted = true;
+          } else {
+            setError("Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.");
+            setPlaying(false);
+          }
         }
       } finally {
-        if (request === playRequestRef.current) setLoading(false);
+        if (request === playRequestRef.current && !youtubeFallbackStarted) setLoading(false);
       }
     },
-    [current, error, finished],
+    [current, error, finished, fallbackToYoutube],
   );
 
   const toggle = useCallback(
