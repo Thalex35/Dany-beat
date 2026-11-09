@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { getYoutubeVideoId, youtubeEmbedUrl, youtubeThumbnailUrl } from "./youtube";
+import {
+  getYoutubeVideoId,
+  youtubeEmbedUrl,
+  youtubePlaybackErrorMessage,
+  youtubeThumbnailUrl,
+} from "./youtube";
 
 describe("YouTube URL helpers", () => {
   it("parses watch, short, embed, Shorts, and YouTube Music URLs", () => {
@@ -33,5 +38,13 @@ describe("YouTube URL helpers", () => {
     expect(youtubeEmbedUrl(videoUrl, { enableApi: true, autoPlay: true, controls: false })).toBe(
       "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&enablejsapi=1&autoplay=1&controls=0",
     );
+    expect(youtubeEmbedUrl(videoUrl, { enableApi: true, origin: "https://beats.example" })).toBe(
+      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&enablejsapi=1&origin=https%3A%2F%2Fbeats.example",
+    );
+  });
+
+  it("explains YouTube loader failures and video playback restrictions", () => {
+    expect(youtubePlaybackErrorMessage()).toContain("YouTube n'est pas bloqué");
+    expect(youtubePlaybackErrorMessage(101)).toContain("bloque sa lecture");
   });
 });

@@ -11,6 +11,7 @@ import { getYoutubeVideoId } from "@/lib/youtube";
 export function PlayerBar() {
   const {
     current,
+    youtubeRetryKey,
     playing,
     finished,
     loading,
@@ -40,6 +41,7 @@ export function PlayerBar() {
             <YoutubeEmbed
               url={current.youtubeUrl}
               title={current.title}
+              retryKey={youtubeRetryKey}
               autoPlay
               hideVideo
               hideControls

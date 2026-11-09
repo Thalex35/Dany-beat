@@ -22,7 +22,11 @@ import {
   listenForAudioEnded,
   syncPlaybackLifecycle,
 } from "@/lib/player-lifecycle";
-import { getYoutubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
+import {
+  getYoutubeVideoId,
+  youtubePlaybackErrorMessage,
+  youtubeThumbnailUrl,
+} from "@/lib/youtube";
 
 export type PlayerTrack = {
   id: string;
@@ -67,6 +71,7 @@ export function playerTrackFromBeat(beat: {
 
 type PlayerValue = {
   current: PlayerTrack | null;
+  youtubeRetryKey: number;
   playing: boolean;
   finished: boolean;
   loading: boolean;
@@ -115,6 +120,7 @@ function waitForAudioMetadata(audio: HTMLAudioElement) {
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [current, setCurrent] = useState<PlayerTrack | null>(null);
+  const [youtubeRetryKey, setYoutubeRetryKey] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [finished, setFinished] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -239,19 +245,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setYoutubeError = useCallback((code?: number) => {
-    const messages: Record<number, string> = {
-      2: "Le lien YouTube de ce beat est invalide.",
-      5: "La vidéo YouTube ne peut pas être lue dans ce lecteur.",
-      100: "Cette vidéo est privée ou a été supprimée sur YouTube.",
-      101: "Le propriétaire de cette vidéo bloque sa lecture sur les autres sites.",
-      150: "Le propriétaire de cette vidéo bloque sa lecture sur les autres sites.",
-      153: "YouTube n'a pas pu vérifier l'origine de cette requête. Réessayez.",
-    };
-    setError(
-      code === undefined
-        ? "La vidéo YouTube n'a pas pu être chargée. Elle est peut-être indisponible."
-        : (messages[code] ?? "Cette vidéo YouTube est indisponible ou ne peut pas être lue."),
-    );
+    setError(youtubePlaybackErrorMessage(code));
     setPlaying(false);
     setLoading(false);
   }, []);
@@ -303,16 +297,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
         if (current?.id === next.id && current.mediaSource === "youtube") {
+          if (error) setYoutubeRetryKey((key) => key + 1);
           if (finished) {
             youtubeControlsRef.current?.seek(0);
             setProgress(0);
           }
           youtubeControlsRef.current?.play();
           setPlaying(true);
-          setLoading(!youtubeControlsRef.current);
+          setLoading(Boolean(error) || !youtubeControlsRef.current);
           return;
         }
         if (current?.mediaSource === "youtube") {
+          if (error && !youtubeControlsRef.current) {
+            setYoutubeRetryKey((key) => key + 1);
+          }
           const videoId = getYoutubeVideoId(next.youtubeUrl);
           if (videoId) youtubeControlsRef.current?.loadVideo(videoId);
           setCurrent(next);
@@ -416,7 +414,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (request === playRequestRef.current) setLoading(false);
       }
     },
-    [current, finished],
+    [current, error, finished],
   );
 
   const toggle = useCallback(
@@ -438,6 +436,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           youtubeControlsRef.current?.pause();
           setPlaying(false);
         } else {
+          if (error) {
+            setError(null);
+            setYoutubeRetryKey((key) => key + 1);
+            setLoading(true);
+          }
           if (finished) {
             youtubeControlsRef.current?.seek(0);
             setProgress(0);
@@ -456,7 +459,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void play(current);
       }
     },
-    [current, finished, playing, play],
+    [current, error, finished, playing, play],
   );
 
   playRef.current = (track) => void play(track);
@@ -652,6 +655,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     <PlayerContext.Provider
       value={{
         current,
+        youtubeRetryKey,
         playing,
         finished,
         loading,
