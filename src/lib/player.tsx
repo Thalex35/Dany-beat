@@ -74,6 +74,11 @@ export function youtubeFallbackTrack(track: PlayerTrack): PlayerTrack | null {
   return { ...track, mediaSource: "youtube" };
 }
 
+export function nextTrackInQueue(queue: PlayerTrack[], currentId: string): PlayerTrack | null {
+  const index = queue.findIndex((track) => track.id === currentId);
+  return index < 0 ? null : (queue[index + 1] ?? null);
+}
+
 type PlayerValue = {
   current: PlayerTrack | null;
   youtubeRetryKey: number;
@@ -85,6 +90,7 @@ type PlayerValue = {
   duration: number;
   volume: number;
   loop: boolean;
+  setQueue: (queue: PlayerTrack[]) => void;
   play: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
   toggle: (track?: PlayerTrack) => void;
   setLoop: (value: boolean) => void;
@@ -185,6 +191,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
+  const setQueue = useCallback((queue: PlayerTrack[]) => {
+    const currentTrack = currentRef.current;
+    queueRef.current = queue.map((track) =>
+      track.id === currentTrack?.id ? currentTrack : track,
+    );
+    if (currentTrack && !queueRef.current.some((track) => track.id === currentTrack.id)) {
+      queueRef.current.push(currentTrack);
+    }
+  }, []);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -207,6 +223,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             setPlaying(false);
           }
         });
+        return;
+      }
+      const nextTrack = nextTrackInQueue(queueRef.current, endedTrack.id);
+      if (nextTrack) {
+        playRef.current(nextTrack);
         return;
       }
       setPlaying(false);
@@ -295,6 +316,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       youtubeControlsRef.current?.play();
       setProgress(0);
       setPlaying(true);
+      return;
+    }
+    const nextTrack = nextTrackInQueue(queueRef.current, currentTrack.id);
+    if (nextTrack) {
+      playRef.current(nextTrack);
       return;
     }
     setPlaying(false);
@@ -716,6 +742,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         duration,
         volume,
         loop,
+        setQueue,
         play: (t, queue) => void play(t, queue),
         toggle,
         setLoop,

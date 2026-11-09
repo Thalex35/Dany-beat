@@ -72,7 +72,7 @@ function BeatDetailPage() {
   const { autoplay } = Route.useSearch();
   const { profile } = useAuth();
   const { data: settings } = useSettings();
-  const { current, playing, finished, toggle, play } = usePlayer();
+  const { current, playing, finished, toggle, play, setQueue } = usePlayer();
   const [licenseIndex, setLicenseIndex] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -95,7 +95,7 @@ function BeatDetailPage() {
   const beat = beatQuery.data ?? null;
   const isYoutube = beat?.media_source === "youtube";
   const usesYoutubePlayback = isYoutube && !beat?.preview_path;
-  const playbackQueue = useQuery({ ...publishedPlaybackQueueQuery, enabled: isYoutube });
+  const playbackQueue = useQuery(publishedPlaybackQueueQuery);
   const previewUrl = useSignedUrl(
     "previews",
     usesYoutubePlayback ? null : beat?.preview_path,
@@ -104,6 +104,11 @@ function BeatDetailPage() {
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
   }, [beat]);
+
+  useEffect(() => {
+    if (current?.id !== beat?.id || !playbackQueue.data) return;
+    setQueue(playbackQueue.data.map(playerTrackFromBeat));
+  }, [beat?.id, current?.id, playbackQueue.data, setQueue]);
 
   useEffect(() => {
     if (!autoplay || !beat || !isYoutube || !beat.youtube_url || !playbackQueue.isSuccess) return;
@@ -251,7 +256,7 @@ function BeatDetailPage() {
                   }
                   play(
                     playerTrackFromBeat(beat),
-                    isYoutube ? playbackQueue.data?.map(playerTrackFromBeat) : undefined,
+                    playbackQueue.data?.map(playerTrackFromBeat),
                   );
                 }}
               >

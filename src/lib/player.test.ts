@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { playerTrackFromBeat, youtubeFallbackTrack } from "./player";
+import {
+  nextTrackInQueue,
+  playerTrackFromBeat,
+  youtubeFallbackTrack,
+} from "./player";
 
 const baseBeat = {
   id: "beat-1",
@@ -48,5 +52,15 @@ describe("playerTrackFromBeat", () => {
     });
 
     expect(youtubeFallbackTrack(track)).toBeNull();
+  });
+
+  it("returns the next beat in queue order without wrapping at the end", () => {
+    const first = playerTrackFromBeat(baseBeat);
+    const second = playerTrackFromBeat({ ...baseBeat, id: "beat-2" });
+    const queue = [first, second];
+
+    expect(nextTrackInQueue(queue, first.id)).toBe(second);
+    expect(nextTrackInQueue(queue, second.id)).toBeNull();
+    expect(nextTrackInQueue(queue, "missing")).toBeNull();
   });
 });
