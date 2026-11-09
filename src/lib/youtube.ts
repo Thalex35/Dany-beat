@@ -15,7 +15,7 @@ export function getYoutubeVideoId(value: string | null | undefined) {
 
   if (hostname === "youtu.be") {
     videoId = url.pathname.split("/").filter(Boolean)[0];
-  } else if (hostname === "youtube.com") {
+  } else if (hostname === "youtube.com" || hostname === "music.youtube.com") {
     if (url.pathname === "/watch") {
       videoId = url.searchParams.get("v") ?? undefined;
     } else {

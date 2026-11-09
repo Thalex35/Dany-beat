@@ -23,7 +23,7 @@ type YouTubeApi = {
       events: {
         onReady: (event: { target: YouTubePlayer }) => void;
         onStateChange: (event: { data: number; target: YouTubePlayer }) => void;
-        onError: (event: { target: YouTubePlayer }) => void;
+        onError: (event: { data: number; target: YouTubePlayer }) => void;
       };
     },
   ) => YouTubePlayer;
@@ -46,16 +46,29 @@ function loadYouTubeApi() {
   youtubeApiPromise = new Promise<YouTubeApi>((resolve, reject) => {
     const previousCallback = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
-      previousCallback?.();
-      if (window.YT?.Player) resolve(window.YT);
-      else reject(new Error("YouTube Player API did not initialize."));
+      try {
+        previousCallback?.();
+      } finally {
+        if (window.YT?.Player) resolve(window.YT);
+        else reject(new Error("YouTube Player API did not initialize."));
+      }
     };
 
-    const script = document.createElement("script");
-    script.src = "https://www.youtube.com/iframe_api";
-    script.async = true;
-    script.onerror = () => reject(new Error("YouTube Player API could not be loaded."));
-    document.head.appendChild(script);
+    const scriptUrl = "https://www.youtube.com/iframe_api";
+    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${scriptUrl}"]`);
+    if (existingScript) {
+      existingScript.addEventListener(
+        "error",
+        () => reject(new Error("YouTube Player API could not be loaded.")),
+        { once: true },
+      );
+    } else {
+      const script = document.createElement("script");
+      script.src = scriptUrl;
+      script.async = true;
+      script.onerror = () => reject(new Error("YouTube Player API could not be loaded."));
+      document.head.appendChild(script);
+    }
   }).catch((error: unknown) => {
     youtubeApiPromise = null;
     throw error;
@@ -87,7 +100,7 @@ export function YoutubeEmbed({
   onPause?: () => void;
   onEnded?: () => void;
   onProgress?: (progress: number, duration: number) => void;
-  onError?: () => void;
+  onError?: (code?: number) => void;
 }) {
   const iframeId = useId().replace(/:/g, "");
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -187,17 +200,21 @@ export function YoutubeEmbed({
                 if (data === youtube.PlayerState.ENDED) onEndedRef.current?.();
               }
             },
-            onError: ({ target }) => {
+            onError: ({ data, target }) => {
               if (getYoutubeVideoId(target.getVideoUrl()) === videoIdRef.current) {
-                onErrorRef.current?.();
+                if (progressTimer !== null) window.clearInterval(progressTimer);
+                progressTimer = null;
+                onErrorRef.current?.(data);
               }
             },
           },
         });
       })
       .catch((error: unknown) => {
-        onErrorRef.current?.();
-        console.error(error);
+        if (!disposed) {
+          onErrorRef.current?.();
+          console.error(error);
+        }
       });
 
     return () => {

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -8,7 +8,11 @@ import { SiteLayout } from "@/components/site/SiteLayout";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
-import { beatFilterOptionsQuery, beatStatsQuery, publishedBeatsQuery } from "@/lib/beats";
+import {
+  beatFilterOptionsQuery,
+  beatStatsQuery,
+  publishedBeatsInfiniteQuery,
+} from "@/lib/beats";
 
 export const Route = createFileRoute("/beats")({
   head: () => ({
@@ -42,13 +46,8 @@ function BeatsPage() {
   const [bpmMax, setBpmMax] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sort, setSort] = useState<Sort>("newest");
-  const [page, setPage] = useState(0);
-  const pageSize = 24;
-
-  const beats = useQuery(
-    publishedBeatsQuery({
-      page,
-      pageSize,
+  const beats = useInfiniteQuery(
+    publishedBeatsInfiniteQuery({
       search,
       genre,
       mood,
@@ -60,7 +59,10 @@ function BeatsPage() {
     }),
   );
   const filterOptions = useQuery(beatFilterOptionsQuery);
-  const all = useMemo(() => beats.data?.beats ?? [], [beats.data?.beats]);
+  const all = useMemo(
+    () => beats.data?.pages.flatMap((page) => page.beats) ?? [],
+    [beats.data?.pages],
+  );
   const stats = useQuery(beatStatsQuery(all.map((beat) => beat.id)));
 
   const genres = useMemo(
@@ -93,8 +95,7 @@ function BeatsPage() {
     [filterOptions.data],
   );
 
-  const total = beats.data?.total ?? 0;
-  const pageCount = Math.ceil(total / pageSize);
+  const total = beats.data?.pages[beats.data.pages.length - 1]?.total ?? 0;
 
   return (
     <SiteLayout>
@@ -117,10 +118,7 @@ function BeatsPage() {
             />
             <Input
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher par titre, genre ou ambiance"
               aria-label="Rechercher un beat"
               className="pl-11"
@@ -128,10 +126,7 @@ function BeatsPage() {
           </div>
           <Select
             value={genre}
-            onChange={(e) => {
-              setGenre(e.target.value);
-              setPage(0);
-            }}
+            onChange={(e) => setGenre(e.target.value)}
             aria-label="Filtrer par genre"
           >
             <option value="all">Tous les genres</option>
@@ -143,10 +138,7 @@ function BeatsPage() {
           </Select>
           <Select
             value={songKey}
-            onChange={(e) => {
-              setSongKey(e.target.value);
-              setPage(0);
-            }}
+            onChange={(e) => setSongKey(e.target.value)}
             aria-label="Filtrer par tonalité"
           >
             <option value="all">Toutes les tonalités</option>
@@ -163,10 +155,7 @@ function BeatsPage() {
             placeholder="BPM min"
             aria-label="BPM minimum"
             value={bpmMin}
-            onChange={(e) => {
-              setBpmMin(e.target.value);
-              setPage(0);
-            }}
+            onChange={(e) => setBpmMin(e.target.value)}
           />
           <Input
             type="number"
@@ -175,10 +164,7 @@ function BeatsPage() {
             placeholder="BPM max"
             aria-label="BPM maximum"
             value={bpmMax}
-            onChange={(e) => {
-              setBpmMax(e.target.value);
-              setPage(0);
-            }}
+            onChange={(e) => setBpmMax(e.target.value)}
           />
           <Input
             type="number"
@@ -187,17 +173,11 @@ function BeatsPage() {
             placeholder="Prix maximum"
             aria-label="Prix maximum"
             value={priceMax}
-            onChange={(e) => {
-              setPriceMax(e.target.value);
-              setPage(0);
-            }}
+            onChange={(e) => setPriceMax(e.target.value)}
           />
           <Select
             value={mood}
-            onChange={(e) => {
-              setMood(e.target.value);
-              setPage(0);
-            }}
+            onChange={(e) => setMood(e.target.value)}
             aria-label="Filtrer par ambiance"
           >
             <option value="all">Toutes les ambiances</option>
@@ -211,14 +191,15 @@ function BeatsPage() {
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            {beats.isPending ? "Chargement…" : `${total} beat${total === 1 ? "" : "s"}`}
+            {beats.isPending
+              ? "Chargement…"
+              : beats.hasNextPage
+                ? `${all.length} sur ${total} beats`
+                : `${total} beat${total === 1 ? "" : "s"}`}
           </p>
           <Select
             value={sort}
-            onChange={(e) => {
-              setSort(e.target.value as Sort);
-              setPage(0);
-            }}
+            onChange={(e) => setSort(e.target.value as Sort)}
             aria-label="Trier les beats"
             className="w-auto"
           >
@@ -240,7 +221,7 @@ function BeatsPage() {
                 </div>
               ))}
             </div>
-          ) : beats.isError ? (
+          ) : beats.isError && !beats.data ? (
             <ErrorState
               title="Une erreur est survenue"
               description="Le catalogue n'a pas pu être chargé."
@@ -265,21 +246,20 @@ function BeatsPage() {
           )}
         </div>
 
-        {pageCount > 1 ? (
-          <div className="mt-10 flex items-center justify-center gap-4">
-            <Button variant="outline" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-              Précédent
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              Page {page + 1} sur {pageCount}
-            </span>
+        {beats.hasNextPage ? (
+          <div className="mt-10 flex flex-col items-center gap-3">
             <Button
               variant="outline"
-              disabled={page + 1 >= pageCount}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={beats.isFetchingNextPage}
+              onClick={() => void beats.fetchNextPage()}
             >
-              Suivant
+              {beats.isFetchingNextPage ? "Chargement…" : "Charger plus de beats"}
             </Button>
+            {beats.isFetchNextPageError ? (
+              <p className="text-xs text-destructive" role="status">
+                Impossible de charger la suite du catalogue. Réessayez.
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>

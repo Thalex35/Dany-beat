@@ -6,6 +6,7 @@ import { YoutubeEmbed } from "@/components/site/YoutubeEmbed";
 import { Spinner } from "@/components/ui/states";
 import { formatTime } from "@/lib/beats";
 import { usePlayer } from "@/lib/player";
+import { getYoutubeVideoId } from "@/lib/youtube";
 
 export function PlayerBar() {
   const {
@@ -35,7 +36,7 @@ export function PlayerBar() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 px-2 pb-2 sm:px-4">
       <div className="mx-auto flex h-22 max-w-5xl items-center gap-2 rounded-xl bg-surface/95 p-1 shadow-2xl ring-1 ring-border backdrop-blur-xl sm:gap-3">
-          {current.mediaSource === "youtube" && current.youtubeUrl ? (
+          {current.mediaSource === "youtube" && getYoutubeVideoId(current.youtubeUrl) ? (
             <YoutubeEmbed
               url={current.youtubeUrl}
               title={current.title}
@@ -54,19 +55,22 @@ export function PlayerBar() {
             to="/beats/$slug"
             params={{ slug: current.slug }}
             search={{ autoplay: false }}
-            className="size-20 shrink-0 overflow-hidden rounded-lg"
+            className="size-10 shrink-0 overflow-hidden rounded-lg sm:size-20"
             aria-label={`Ouvrir ${current.title}`}
           >
             <Cover
               path={current.coverPath}
               alt=""
-              className="size-20 rounded-lg"
+              className="size-10 rounded-lg sm:size-20"
               youtubeUrl={current.youtubeUrl ?? null}
             />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-baseline gap-2">
-              <p className="truncate text-xs font-medium sm:text-sm" title={current.title}>
+              <p
+                className="line-clamp-2 min-w-0 flex-1 text-[10px] leading-4 font-medium sm:text-xs"
+                title={current.title}
+              >
                 {current.title}
               </p>
               {current.bpm ? (
@@ -100,8 +104,8 @@ export function PlayerBar() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <div className="hidden items-center gap-1 min-[420px]:flex" title="Volume">
-              <Volume2 className="size-3.5 text-muted-foreground sm:size-4" aria-hidden="true" />
+            <div className="flex items-center gap-0.5 sm:gap-1" title="Volume">
+              <Volume2 className="size-3 text-muted-foreground sm:size-4" aria-hidden="true" />
               <input
                 type="range"
                 min={0}
@@ -110,7 +114,7 @@ export function PlayerBar() {
                 value={volume}
                 aria-label="Volume"
                 onChange={(e) => setVolume(Number(e.target.value))}
-                className="h-1 w-9 accent-(--primary) sm:w-16"
+                className="h-1 w-7 accent-(--primary) sm:w-16"
               />
             </div>
             <button

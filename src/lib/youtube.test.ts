@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 import { getYoutubeVideoId, youtubeEmbedUrl, youtubeThumbnailUrl } from "./youtube";
 
 describe("YouTube URL helpers", () => {
-  it("parses watch, short, and Shorts URLs", () => {
+  it("parses watch, short, embed, Shorts, and YouTube Music URLs", () => {
     expect(getYoutubeVideoId("https://www.youtube.com/watch?v=abcdefghijk&t=10")).toBe(
       "abcdefghijk",
     );
     expect(getYoutubeVideoId("https://youtu.be/abcdefghijk")).toBe("abcdefghijk");
+    expect(getYoutubeVideoId("https://www.youtube.com/embed/abcdefghijk")).toBe("abcdefghijk");
+    expect(getYoutubeVideoId("https://music.youtube.com/watch?v=abcdefghijk")).toBe(
+      "abcdefghijk",
+    );
     expect(getYoutubeVideoId("https://youtube.com/shorts/abcdefghijk")).toBe("abcdefghijk");
   });
 

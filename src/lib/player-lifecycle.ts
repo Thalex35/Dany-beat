@@ -13,15 +13,6 @@ export function listenForAudioEnded(audio: LifecycleTarget, onEnded: () => void)
   return () => audio.removeEventListener("ended", onEnded);
 }
 
-export function shouldAutoAdvanceAfterPlayError(error: unknown) {
-  return !(
-    typeof error === "object" &&
-    error !== null &&
-    "name" in error &&
-    error.name === "NotAllowedError"
-  );
-}
-
 export function syncPlaybackLifecycle(
   audio: AudioState,
   documentTarget: VisibilityTarget,

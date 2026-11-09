@@ -39,6 +39,8 @@ export type PublishedBeatsPage = {
   total: number;
 };
 
+export const PUBLIC_BEATS_PAGE_SIZE = 48;
+
 export type BeatFilterOptions = {
   genre: string | null;
   mood: string | null;
@@ -58,9 +60,7 @@ export function slugify(value: string) {
     .slice(0, 60);
 }
 
-export const publishedBeatsQuery = (params: {
-  page: number;
-  pageSize: number;
+type PublishedBeatsFilters = {
   search: string;
   genre: string;
   mood: string;
@@ -69,44 +69,74 @@ export const publishedBeatsQuery = (params: {
   bpmMax: number | null;
   priceMax: number | null;
   sort: "newest" | "oldest" | "price-asc" | "price-desc" | "popular";
+};
+
+async function fetchPublishedBeatsPage(
+  params: PublishedBeatsFilters,
+  page: number,
+  pageSize: number,
+): Promise<PublishedBeatsPage> {
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
+  let query = supabase
+    .from("beats")
+    .select(BEAT_COLUMNS, { count: "exact" })
+    .eq("status", "published");
+
+  if (params.search.trim()) {
+    const search = params.search.trim().replace(/[%,()]/g, " ");
+    query = query.or(
+      `title.ilike.%${search}%,genre.ilike.%${search}%,mood.ilike.%${search}%,song_key.ilike.%${search}%,tags.cs.{${search}}`,
+    );
+  }
+  if (params.genre !== "all") query = query.eq("genre", params.genre);
+  if (params.mood !== "all") query = query.eq("mood", params.mood);
+  if (params.songKey !== "all") query = query.eq("song_key", params.songKey);
+  if (params.bpmMin !== null) query = query.gte("bpm", params.bpmMin);
+  if (params.bpmMax !== null) query = query.lte("bpm", params.bpmMax);
+  if (params.priceMax !== null) query = query.lte("price", params.priceMax);
+
+  if (params.sort === "price-asc") query = query.order("price", { ascending: true });
+  else if (params.sort === "price-desc") query = query.order("price", { ascending: false });
+  else {
+    query = query.order("published_at", {
+      ascending: params.sort === "oldest",
+      nullsFirst: false,
+    });
+  }
+  query = query.order("created_at", { ascending: false }).order("id", { ascending: true });
+
+  const { data, count, error } = await query.range(from, to);
+  if (error) throw error;
+  return { beats: (data ?? []) as unknown as Beat[], total: count ?? 0 };
+}
+
+export function getNextPublishedBeatsPage(
+  lastPage: PublishedBeatsPage,
+  pages: PublishedBeatsPage[],
+): number | undefined {
+  const loaded = pages.reduce((count, page) => count + page.beats.length, 0);
+  return loaded < lastPage.total && lastPage.beats.length > 0 ? pages.length : undefined;
+}
+
+export const publishedBeatsQuery = (params: PublishedBeatsFilters & {
+  page: number;
+  pageSize: number;
 }) => ({
   queryKey: ["beats", "published", params],
   staleTime: Infinity,
   gcTime: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
-  queryFn: async (): Promise<PublishedBeatsPage> => {
-    const from = params.page * params.pageSize;
-    const to = from + params.pageSize - 1;
-    let query = supabase
-      .from("beats")
-      .select(BEAT_COLUMNS, { count: "exact" })
-      .eq("status", "published");
+  queryFn: () => fetchPublishedBeatsPage(params, params.page, params.pageSize),
+});
 
-    if (params.search.trim()) {
-      const search = params.search.trim().replace(/[%,()]/g, " ");
-      query = query.or(
-        `title.ilike.%${search}%,genre.ilike.%${search}%,mood.ilike.%${search}%,song_key.ilike.%${search}%,tags.cs.{${search}}`,
-      );
-    }
-    if (params.genre !== "all") query = query.eq("genre", params.genre);
-    if (params.mood !== "all") query = query.eq("mood", params.mood);
-    if (params.songKey !== "all") query = query.eq("song_key", params.songKey);
-    if (params.bpmMin !== null) query = query.gte("bpm", params.bpmMin);
-    if (params.bpmMax !== null) query = query.lte("bpm", params.bpmMax);
-    if (params.priceMax !== null) query = query.lte("price", params.priceMax);
-
-    if (params.sort === "price-asc") query = query.order("price", { ascending: true });
-    else if (params.sort === "price-desc") query = query.order("price", { ascending: false });
-    else {
-      query = query.order("published_at", {
-        ascending: params.sort === "oldest",
-        nullsFirst: false,
-      });
-    }
-
-    const { data, count, error } = await query.range(from, to);
-    if (error) throw error;
-    return { beats: (data ?? []) as unknown as Beat[], total: count ?? 0 };
-  },
+export const publishedBeatsInfiniteQuery = (params: PublishedBeatsFilters) => ({
+  queryKey: ["beats", "published-infinite", params],
+  staleTime: Infinity,
+  gcTime: PUBLIC_CATALOGUE_CACHE_MAX_AGE,
+  initialPageParam: 0,
+  queryFn: ({ pageParam }: { pageParam: number }) =>
+    fetchPublishedBeatsPage(params, pageParam, PUBLIC_BEATS_PAGE_SIZE),
+  getNextPageParam: getNextPublishedBeatsPage,
 });
 
 export const beatFilterOptionsQuery = {
