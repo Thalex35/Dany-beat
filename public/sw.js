@@ -1,7 +1,9 @@
-const CACHE_NAME = "dany-beats-v1";
+const CACHE_NAME = "dany-beats-v3";
 const APP_SHELL = [
   "/manifest.json",
+  "/favicon.ico",
   "/dany-beats.svg",
+  "/assistant-logo.svg",
   "/icons/app-icon-192.png",
   "/icons/app-icon-512.png",
 ];

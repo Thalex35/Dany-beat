@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   nextTrackInQueue,
+  orderFeaturedTracks,
   playerTrackFromBeat,
   youtubeFallbackTrack,
 } from "./player";
@@ -62,5 +63,19 @@ describe("playerTrackFromBeat", () => {
     expect(nextTrackInQueue(queue, first.id)).toBe(second);
     expect(nextTrackInQueue(queue, second.id)).toBeNull();
     expect(nextTrackInQueue(queue, "missing")).toBeNull();
+  });
+
+  it("plays featured beats first, then appends the remaining catalogue without duplicates", () => {
+    const first = playerTrackFromBeat(baseBeat);
+    const second = playerTrackFromBeat({ ...baseBeat, id: "beat-2" });
+    const third = playerTrackFromBeat({ ...baseBeat, id: "beat-3" });
+    const fourth = playerTrackFromBeat({ ...baseBeat, id: "beat-4" });
+
+    expect(orderFeaturedTracks([second, first], [first, third, second, fourth])).toEqual([
+      second,
+      first,
+      third,
+      fourth,
+    ]);
   });
 });

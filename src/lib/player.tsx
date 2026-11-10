@@ -79,6 +79,17 @@ export function nextTrackInQueue(queue: PlayerTrack[], currentId: string): Playe
   return index < 0 ? null : (queue[index + 1] ?? null);
 }
 
+export function orderFeaturedTracks(
+  featuredTracks: PlayerTrack[],
+  catalogueTracks: PlayerTrack[],
+): PlayerTrack[] {
+  const featuredIds = new Set(featuredTracks.map((track) => track.id));
+  return [
+    ...featuredTracks,
+    ...catalogueTracks.filter((track) => !featuredIds.has(track.id)),
+  ];
+}
+
 type PlayerValue = {
   current: PlayerTrack | null;
   youtubeRetryKey: number;

@@ -7,7 +7,12 @@ import { HeroBackground } from "@/components/site/HeroBackground";
 import { SiteLayout } from "@/components/site/SiteLayout";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
-import { beatStatsQuery, publishedBeatsQuery } from "@/lib/beats";
+import {
+  beatStatsQuery,
+  publishedBeatsQuery,
+  publishedPlaybackQueueQuery,
+} from "@/lib/beats";
+import { orderFeaturedTracks, playerTrackFromBeat } from "@/lib/player";
 import { useSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/")({
@@ -47,12 +52,16 @@ function HomePage() {
       sort: "newest",
     }),
   );
+  const playbackQueue = useQuery(publishedPlaybackQueueQuery);
   const allBeats = beats.data?.beats ?? [];
   const stats = useQuery(beatStatsQuery(allBeats.map((beat) => beat.id)));
   const { data: settings } = useSettings();
 
   const featured = allBeats.filter((b) => b.featured).slice(0, 6);
   const list = featured.length ? featured : allBeats.slice(0, 6);
+  const featuredTracks = list.map(playerTrackFromBeat);
+  const catalogueTracks = playbackQueue.data?.map(playerTrackFromBeat) ?? [];
+  const homepageQueue = orderFeaturedTracks(featuredTracks, catalogueTracks);
   const bioIntro = settings?.producer_bio?.split("\n").filter(Boolean)[0];
 
   return (
@@ -146,13 +155,33 @@ function HomePage() {
               {list.map((beat) => {
                 const s = stats.data?.[beat.id];
                 return s ? (
-                  <BeatCard key={beat.id} beat={beat} stats={s} queue={list} />
+                  <BeatCard
+                    key={beat.id}
+                    beat={beat}
+                    stats={s}
+                    playbackQueue={homepageQueue}
+                    playbackQueueLoading={playbackQueue.isPending}
+                  />
                 ) : (
-                  <BeatCard key={beat.id} beat={beat} queue={list} />
+                  <BeatCard
+                    key={beat.id}
+                    beat={beat}
+                    playbackQueue={homepageQueue}
+                    playbackQueueLoading={playbackQueue.isPending}
+                  />
                 );
               })}
             </div>
           )}
+          {playbackQueue.isError ? (
+            <div className="mt-6">
+              <ErrorState
+                title="La suite de la lecture n'a pas pu être chargée"
+                description="Les beats à la une restent accessibles, mais le catalogue ne pourra pas prendre le relais."
+                onRetry={() => void playbackQueue.refetch()}
+              />
+            </div>
+          ) : null}
         </div>
       </section>
     </SiteLayout>

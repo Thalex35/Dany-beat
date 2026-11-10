@@ -12,7 +12,6 @@ import {
 import { useEffect, useMemo, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import danyLogo from "../assets/danyLogo.png";
 import { AuthProvider } from "../lib/auth";
 import { PlayerProvider } from "../lib/player";
 import { PlayerBar } from "../components/site/PlayerBar";
@@ -126,7 +125,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: danyLogo, type: "image/png" },
+      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "manifest", href: "/manifest.json" },
       { rel: "apple-touch-icon", href: "/icons/app-icon-192.png" },
     ],

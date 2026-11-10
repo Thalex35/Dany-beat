@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bot, MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
+import { MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Cover } from "@/components/site/Cover";
@@ -197,7 +197,9 @@ export function BeatAssistant() {
         <section className="assistant-panel mb-3 flex h-[min(36rem,calc(100vh-7rem))] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl bg-background shadow-2xl ring-1 ring-border">
           <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
             <div className="flex items-center gap-2">
-              <span className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground"><Bot className="size-4" /></span>
+              <span className="grid size-9 place-items-center rounded-full bg-surface-2 ring-1 ring-border">
+                <img src="/assistant-logo.svg" alt="" className="size-8" />
+              </span>
               <div>
                 <p className="text-sm font-semibold">ASSISTANT DANY BEATS</p>
                 <p className="text-[11px] text-muted-foreground">Aide du site et du catalogue</p>
@@ -335,8 +337,8 @@ export function BeatAssistant() {
           </div>
         </section>
       ) : null}
-      <button type="button" onClick={() => setOpen((current) => !current)} aria-label={open ? "Fermer l'assistant DANY BEATS" : "Ouvrir l'assistant DANY BEATS"} className="button-contour ml-auto grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105">
-        {open ? <X /> : <MessageCircle />}
+      <button type="button" onClick={() => setOpen((current) => !current)} aria-label={open ? "Fermer l'assistant DANY BEATS" : "Ouvrir l'assistant DANY BEATS"} className="button-contour ml-auto grid size-14 place-items-center rounded-full bg-surface text-primary ring-2 ring-primary shadow-lg transition-transform hover:scale-105">
+        {open ? <X /> : <img src="/assistant-logo.svg" alt="" className="size-11" />}
       </button>
     </div>
   );
