@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { answerSiteQuestion, isBeatSearchRequest, parseBeatSearch } from "./assistant";
+import {
+  answerMusicQuestion,
+  answerSiteQuestion,
+  isBeatSearchRequest,
+  parseBeatSearch,
+} from "./assistant";
 
 describe("site assistant answers", () => {
   it("explains purchase through WhatsApp and links to the catalogue", () => {
@@ -27,6 +32,16 @@ describe("site assistant answers", () => {
     expect(answer?.actions).toContainEqual({ label: "Page de contact", href: "/contact" });
     expect(isBeatSearchRequest("Comment supprimer mon compte ?")).toBe(false);
   });
+
+  it("answers music concepts in Haitian Creole", () => {
+    expect(answerSiteQuestion("Ki sa BPM vle di?")?.text).toContain("BPM vle di");
+    expect(answerMusicQuestion("What is the BPM?")?.text).toContain("battements par minute");
+    expect(answerMusicQuestion("Kisa melodi ye?")?.text).toContain("Melodi se");
+    expect(answerMusicQuestion("Ki sa konpa ye?")?.text).toContain("Konpa se");
+    expect(answerMusicQuestion("What is the mood of a beat?")?.text).toContain(
+      "L'ambiance (ou le mood)",
+    );
+  });
 });
 
 describe("assistant beat search parsing", () => {
@@ -42,5 +57,24 @@ describe("assistant beat search parsing", () => {
     expect(parseBeatSearch("R&B")).toEqual({ bpm: null, terms: ["rnb"] });
     expect(isBeatSearchRequest("Afro")).toBe(true);
     expect(isBeatSearchRequest("Flou")).toBe(true);
+  });
+
+  it("extracts a Haitian Creole genre and tempo without treating filler as search terms", () => {
+    expect(parseBeatSearch("Mwen bezwen yon beat konpa a 110 BPM")).toEqual({
+      bpm: 110,
+      terms: ["konpa"],
+    });
+    expect(isBeatSearchRequest("Mwen bezwen yon beat konpa a 110 BPM")).toBe(true);
+    expect(answerMusicQuestion("Kijan pou jwenn yon beat konpa?")).toBeNull();
+    expect(isBeatSearchRequest("Kijan pou jwenn yon beat konpa?")).toBe(true);
+  });
+
+  it("does not turn a music-theory question into a catalogue search", () => {
+    expect(isBeatSearchRequest("What does harmony mean in music?")).toBe(false);
+    expect(answerMusicQuestion("What does harmony mean in music?")?.text).toContain(
+      "La mélodie",
+    );
+    expect(answerMusicQuestion("sad mood")).toBeNull();
+    expect(isBeatSearchRequest("sad mood")).toBe(true);
   });
 });

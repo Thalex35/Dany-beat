@@ -34,14 +34,27 @@ function normalizeMessage(text: string) {
     .trim();
 }
 
+function isHaitianCreole(text: string) {
+  return /\b(mwen|ou|nou|mizik|ki|kijan|kisa|cheche|chache|bezwen|vle|tanpri|bonjou|konpa)\b/.test(text);
+}
+
+const DEFINITION_QUESTION =
+  /\b(what is|what does|meaning of|define|explain|que signifie|que veut dire|c est quoi|qu est ce que|explique|ki sa|kisa|sa vle di|kisa yo rele|kijan)\b/;
+
 export function answerSiteQuestion(input: string): AssistantAnswer | null {
   const text = normalizeMessage(input);
 
   if (
-    /^(hi|hello|hey|hiya|howdy|yo|good morning|good afternoon|good evening|whats up|salut|bonjour|bonsoir|coucou|cc|wesh)( there| dany| assistant)?( ca va| comment ca va| how are you)?$/.test(
+    /^(hi|hello|hey|hiya|howdy|yo|good morning|good afternoon|good evening|whats up|salut|bonjour|bonsoir|bonjou|coucou|cc|wesh)( there| dany| assistant)?( ca va| comment ca va| kijan ou ye| how are you)?$/.test(
       text,
     )
   ) {
+    if (isHaitianCreole(text)) {
+      return {
+        text: "Bonjou! Mwen ka ede w jwenn yon beat, konprann BPM, estil ak anbyans mizik, oswa sèvi ak katalòg la. Kisa w ap chèche?",
+        actions: [catalogAction, contactAction],
+      };
+    }
     return {
       text: "Salut ! Je peux t'aider à trouver un beat, utiliser le catalogue, gérer tes favoris ou ton panier, et contacter le producteur.",
       actions: [catalogAction, contactAction],
@@ -120,10 +133,16 @@ export function answerSiteQuestion(input: string): AssistantAnswer | null {
   }
 
   if (
-    /\b(acheter|achat|buy|purchase|payer|pay|paiement|payment|prix|tarif|price|cost|licence|license|carte|card|online|combien|how much|coute|expensive|cheap)\b/.test(
+    /\b(acheter|achat|buy|purchase|payer|pay|paiement|payment|prix|tarif|price|cost|licence|license|lisans|carte|card|online|combien|how much|coute|expensive|cheap)\b/.test(
       text,
     )
   ) {
+    if (isHaitianCreole(text)) {
+      return {
+        text: "Pri ak kondisyon lisans yo parèt sou chak fich beat. Chwazi lisans ki koresponn ak jan w ap itilize mizik la, epi kontakte pwodiktè a sou WhatsApp pou mande acha a. Sit la pa pran peman pa kat.",
+        actions: [catalogAction, contactAction],
+      };
+    }
     return {
       text: "Les prix et licences sont indiqués sur chaque fiche de beat. Choisis une licence, puis clique sur « Demander l'achat par WhatsApp » : un message sera préparé pour le producteur. Le site ne traite pas de paiement par carte.",
       actions: [catalogAction, contactAction],
@@ -172,10 +191,16 @@ export function answerSiteQuestion(input: string): AssistantAnswer | null {
   }
 
   if (
-    /\b(bpm signifie|signification du bpm|what is bpm|what does bpm mean|bpm veut dire|que signifie bpm|que veut dire bpm)\b/.test(
+    /\b(bpm signifie|signification du bpm|what is bpm|what does bpm mean|bpm veut dire|que signifie bpm|que veut dire bpm|ki sa bpm|kisa bpm|kijan bpm|bpm sa vle di)\b/.test(
       text,
     )
   ) {
+    if (isHaitianCreole(text)) {
+      return {
+        text: "BPM vle di batman pa minit; se vitès ritm mizik la. Yon BPM ba sonnen pi dousman, yon BPM wo sonnen pi vit. Ou ka chèche beat selon BPM nan katalòg la.",
+        actions: [catalogAction],
+      };
+    }
     return {
       text: "Le BPM indique le tempo d'un beat (battements par minute). Il est affiché sur les cartes et les fiches; tu peux aussi filtrer le catalogue par BPM minimum et maximum.",
       actions: [catalogAction],
@@ -227,16 +252,148 @@ export function answerSiteQuestion(input: string): AssistantAnswer | null {
   return null;
 }
 
+export function answerMusicQuestion(input: string): AssistantAnswer | null {
+  const text = normalizeMessage(input);
+  const asksForDefinition =
+    (DEFINITION_QUESTION.test(text) &&
+      !(/\bkijan\b/.test(text) && SEARCH_ACTION.test(text))) ||
+    text.split(/\s+/).length === 1;
+  if (!asksForDefinition) return null;
+
+  const creole = isHaitianCreole(text);
+  if (/\b(bpm|tempo)\b/.test(text)) {
+    return {
+      text: creole
+        ? "BPM vle di batman pa minit; se vitès ritm mizik la. Yon BPM ba sonnen pi dousman, yon BPM wo sonnen pi vit. Ou ka chèche beat selon BPM nan katalòg la."
+        : "Le BPM (battements par minute) mesure le tempo d'un morceau. Un BPM bas donne une sensation plus lente; un BPM élevé, plus rapide. Tu peux filtrer le catalogue par BPM.",
+      actions: [catalogAction],
+    };
+  }
+  if (/\b(tonalite|key|musical key)\b/.test(text)) {
+    return {
+      text: creole
+        ? "Tonalite a se nòt prensipal yon mizik bati sou li. Lè vwa a ak enstrimantal la nan menm tonalite, yo mache pi byen ansanm; ou ka wè tonalite yon beat sou fich li si enfòmasyon an disponib."
+        : "La tonalité indique la note et la gamme qui servent de base à un morceau. Une voix et une instrumentale dans des tonalités compatibles s'accordent mieux; la tonalité d'un beat peut être indiquée sur sa fiche.",
+      actions: [catalogAction],
+    };
+  }
+  if (/\b(melodie|melody|harmonie|harmony|accord|accords|chord|chords|gamme|scale)\b/.test(text)) {
+    return {
+      text: creole
+        ? "Melodi se pati mizik ou ka chante oswa sonje fasil; amoni se nòt ak akò ki akonpaye l. Akò yo fòme koulè amoni an, epi yo ka bay yon mizik yon santiman lajwa, tristès oswa tansyon."
+        : "La mélodie est la suite de notes que l'on peut chanter ou retenir; l'harmonie est l'ensemble des notes et accords qui l'accompagnent. Les accords donnent sa couleur et son émotion à la musique.",
+    };
+  }
+  if (/\b(groove|rythme|rhythm|mesure|measure|bar|bars|barres)\b/.test(text)) {
+    return {
+      text: creole
+        ? "Ritm se fason tan yo ak aksan yo òganize nan mizik. Yon mezi se yon gwoup batman; nan rap, yon bar souvan koresponn ak yon mezi, epi groove la se sansasyon mouvman ritm nan bay."
+        : "Le rythme organise les temps et les accents. Une mesure regroupe plusieurs temps; en rap, une barre correspond souvent à une mesure, tandis que le groove désigne la sensation de mouvement créée par le rythme.",
+    };
+  }
+  if (/\b(stems|pistes separees)\b/.test(text)) {
+    return {
+      text: creole
+        ? "Stems yo se diferan pati odyo yon mizik separe, tankou tanbou, bas ak melodi. Yo itil pou fè remix oswa ajiste miks la; disponiblite yo depann de lisans beat la."
+        : "Les stems sont les différentes parties audio séparées d'un morceau, comme la batterie, la basse et la mélodie. Ils servent au remix ou à un mixage personnalisé; leur disponibilité dépend de la licence du beat.",
+    };
+  }
+  if (/\b(sample|sampling)\b/.test(text)) {
+    return {
+      text: creole
+        ? "Sampling se lè yo pran yon ti pati nan yon anrejistreman pou sèvi avè l nan yon lòt mizik. Anvan piblikasyon, fòk dwa sou echantiyon an otorize oswa echantiyon an lib pou itilize."
+        : "Le sampling consiste à réutiliser un extrait d'un enregistrement dans un autre morceau. Avant toute publication, il faut vérifier que l'échantillon est autorisé ou libre de droits.",
+    };
+  }
+  if (
+    /\b(mixage|mixing|mastering|masterisation|compression|egalisation|equalization|equalisation)\b/.test(
+      text,
+    )
+  ) {
+    return {
+      text: creole
+        ? "Mixaj la balanse vwa ak enstriman yo nan menm mizik la. Mastering la se dènye ajisteman ki bay mizik la yon son regilye ak yon nivo apwopriye sou diferan aparèy."
+        : "Le mixage équilibre les voix et les instruments dans le morceau. Le mastering est l'étape finale qui donne un son cohérent et un niveau adapté aux différents appareils.",
+    };
+  }
+  if (/\b(mood|ambiance|anbyans|emotion|emotions)\b/.test(text)) {
+    return {
+      text: creole
+        ? "Anbyans lan se santiman oswa atmosfè mizik la bay, tankou tris, nwa, kalm oswa enèjik. Li ede w chwazi yon beat ki mache ak emosyon chante w la."
+        : "L'ambiance (ou le mood) décrit l'émotion ou l'atmosphère d'un morceau, par exemple triste, sombre, calme ou énergique. Elle aide à choisir un beat qui correspond à l'intention d'une chanson.",
+      actions: [catalogAction],
+    };
+  }
+  if (
+    DEFINITION_QUESTION.test(text) &&
+    /\b(trap|drill|afrobeats|afrobeat|amapiano|konpa|kompa|zouk|reggae|dancehall|boom bap|hip hop|rnb|house|techno|jazz|gospel)\b/.test(
+      text,
+    )
+  ) {
+    if (/\b(konpa|kompa)\b/.test(text)) {
+      return {
+        text: creole
+          ? "Konpa se yon estil mizik ak dans ki soti Ayiti, ak ritm pa li ak anpil enfliyans nan mizik Karayib la."
+          : "Le konpa est un style de musique et de danse originaire d'Haïti, reconnaissable à son rythme et à ses influences caribéennes.",
+      };
+    }
+    if (/\b(drill|trap|afrobeats|afrobeat|amapiano|boom bap|hip hop|rnb|house|techno)\b/.test(text)) {
+      return {
+        text: creole
+          ? "Se yon estil oswa sou-estil mizik ki gen pwòp ritm, son ak enstriman pa li. Si w di m ki non an oswa ki anbyans ou renmen, m ap ede w jwenn yon beat ki mache avè l."
+          : "C'est un genre ou sous-genre musical avec ses propres rythmes, sons et instruments. Dis-moi le style ou l'ambiance que tu aimes et je t'aiderai à trouver un beat correspondant.",
+        actions: [catalogAction],
+      };
+    }
+    return {
+      text: creole
+        ? "Se yon estil mizik ki gen pwòp ritm ak enstriman pa li. Di m ki kalite son w ap chèche a pou m ka ede w jwenn yon beat ki mache avè l."
+        : "C'est un genre musical avec ses propres rythmes et instruments. Décris le son que tu cherches et je t'aiderai à trouver un beat correspondant.",
+      actions: [catalogAction],
+    };
+  }
+
+  if (
+    DEFINITION_QUESTION.test(text) &&
+    /\b(mizik|music|musique|chanson|song|instrumental|beat|rap|vocal|voix|chant|lyrics|paroles|flow|production)\b/.test(
+      text,
+    )
+  ) {
+    return {
+      text: creole
+        ? "Mwen ka ede w konprann estil mizik, ritm, BPM, tonalite, melodi, miksaj ak lisans beat. Di m ki konsèp oswa ki son ou vle dekouvri."
+        : "Je peux expliquer les styles, le rythme, le BPM, la tonalité, la mélodie, le mixage et les licences de beats. Dis-moi le concept ou le son que tu veux découvrir.",
+      actions: [catalogAction],
+    };
+  }
+
+  if (
+    !isBeatSearchRequest(input) &&
+    /\b(mizik|music|musique|chanson|song|instrumental|beat|rap|vocal|voix|chant|lyrics|paroles|flow|production)\b/.test(
+      text,
+    )
+  ) {
+    return {
+      text: creole
+        ? "Mwen ka ede w sou estil mizik, ekriti chante, vwa, pwodiksyon beat, ritm, BPM ak lisans. Poze m yon kesyon presi oswa dekri son w ap chèche a."
+        : "Je peux t'aider sur les styles, l'écriture, la voix, la production de beats, le rythme, le BPM et les licences. Pose une question précise ou décris le son que tu cherches.",
+      actions: [catalogAction],
+    };
+  }
+
+  return null;
+}
+
 const SEARCH_STOP_WORDS = new Set(
-  "a about all am an and are as at avec au aux be been beat beats because but by can ce cette could des de did do does doing du en est et for from get gets give got had have has he her here him his how i if in into is it its je la le les me moi mon my need nor not of on or our out please peux pouvez pour recommander recommande recherche rechercher she so than that the them then there these they this through to trop tu un une up us veux voulez voudrais was we were what when where which who why with would you your trouver trouve chercher cherche cherchez find searching search looking recommend see show want wanna bpm instrumental instrumentale instrumentales".split(
+  "a about all am an and are as at avec au aux be been because but by can ce cette could des de did do does doing du en est et for from get gets give got had have has he her here him his how i if in into is it its je la le les me moi mon my need nor not of on or our out please peux pouvez pour recommander recommande recherche rechercher she so than that the them then there these they this through to trop tu un une up us veux voulez voudrais was we were what when where which who why with would you your trouver trouve chercher cherche cherchez find searching search looking recommend see show want wanna bpm instrumental instrumentale instrumentales a an ap avek byen chak depi di e epi eske gen k ap ka ke ki la li lot mwen nan ni nou oswa pa pral sa se sou tan te tout yon yo mizik music musique chanson song bezwen chache cheche jwenn".split(
     " ",
   ),
 );
 
 const BEAT_SEARCH_CONTEXT =
-  /\b(beat|beats|instrumental|instrumentale|instrumentales|rap|trap|drill|afro|rnb|sad|sombre|dark|chill|love|amapiano|hip hop|boom bap)\b/;
+  /\b(beat|beats|instrumental|instrumentale|instrumentales|rap|trap|drill|afro|afrobeats|rnb|sad|sombre|dark|chill|love|amapiano|hip hop|boom bap|konpa|kompa|zouk|reggae|dancehall|gospel|jazz|soul|funk|house|techno|pop|rock|lofi|lo fi|reggaeton)\b/;
 const SEARCH_ACTION =
-  /\b(cherche|chercher|trouve|trouver|recommande|recommander|suggest|suggestion|find|search|recommend|looking for)\b/;
+  /\b(cherche|chercher|trouve|trouver|recommande|recommander|suggest|suggestion|find|search|recommend|looking for|chache|cheche|jwenn|rekomande|konsey)\b/;
 
 export function parseBeatSearch(input: string) {
   const text = normalizeMessage(input);
@@ -258,7 +415,7 @@ export function isBeatSearchRequest(input: string) {
   const shortKeywordSearch =
     terms.length > 0 &&
     text.split(/\s+/).length <= 3 &&
-    !/\b(what|where|when|which|who|why|how|can|could|do|does|is|are|comment|ou|quand|quel|quelle|qui|pourquoi|est|sont)\b/.test(
+    !/\b(what|where|when|which|who|why|how|can|could|do|does|is|are|comment|ou|quand|quel|quelle|qui|pourquoi|est|sont|ki|kisa|kijan|poukisa)\b/.test(
       text,
     );
   return (

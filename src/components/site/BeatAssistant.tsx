@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  answerMusicQuestion,
   answerSiteQuestion,
   isBeatSearchRequest,
   parseBeatSearch,
@@ -88,7 +89,7 @@ export function BeatAssistant() {
     {
       id: 1,
       role: "assistant",
-      text: "Salut ! Je peux t'aider à trouver un beat, utiliser le site, gérer ton compte, tes favoris ou ton panier. Pose-moi ta question.",
+      text: "Salut ! Je peux t'aider à trouver un beat et répondre aux questions sur le rythme, les BPM, les tonalités, les styles et la production musicale. Pose-moi aussi tes questions sur le site.",
       actions: [
         { label: "Explorer les beats", href: "/beats" },
         { label: "Contact", href: "/contact" },
@@ -136,6 +137,16 @@ export function BeatAssistant() {
     const userMessageId = nextMessageId.current++;
     const assistantMessageId = nextMessageId.current++;
     setMessages((current) => [...current, { id: userMessageId, role: "user", text }]);
+
+    const musicAnswer = answerMusicQuestion(text);
+    if (musicAnswer) {
+      setRecommendations([]);
+      setMessages((current) => [
+        ...current,
+        { id: assistantMessageId, role: "assistant", ...musicAnswer },
+      ]);
+      return;
+    }
 
     const answer = answerSiteQuestion(text);
     if (answer) {
@@ -192,9 +203,12 @@ export function BeatAssistant() {
   }
 
   return (
-    <div className="fixed right-5 bottom-24 z-50 sm:right-8 sm:bottom-8">
+    <div className="fixed right-5 bottom-24 z-[70] sm:right-8 sm:bottom-8">
       {open ? (
-        <section className="assistant-panel mb-3 flex h-[min(36rem,calc(100vh-7rem))] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl bg-background shadow-2xl ring-1 ring-border">
+        <section
+          id="dany-beats-assistant-panel"
+          className="assistant-panel mb-3 flex h-[min(36rem,calc(100vh-7rem))] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl bg-background shadow-2xl ring-1 ring-border"
+        >
           <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
             <div className="flex items-center gap-2">
               <span className="grid size-9 place-items-center rounded-full bg-surface-2 ring-1 ring-border">
@@ -202,7 +216,7 @@ export function BeatAssistant() {
               </span>
               <div>
                 <p className="text-sm font-semibold">ASSISTANT DANY BEATS</p>
-                <p className="text-[11px] text-muted-foreground">Aide du site et du catalogue</p>
+                <p className="text-[11px] text-muted-foreground">Conseils musicaux et aide du site</p>
               </div>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Fermer l'assistant" className="button-contour grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
@@ -337,7 +351,14 @@ export function BeatAssistant() {
           </div>
         </section>
       ) : null}
-      <button type="button" onClick={() => setOpen((current) => !current)} aria-label={open ? "Fermer l'assistant DANY BEATS" : "Ouvrir l'assistant DANY BEATS"} className="button-contour ml-auto grid size-14 place-items-center rounded-full bg-surface text-primary ring-2 ring-primary shadow-lg transition-transform hover:scale-105">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        aria-controls="dany-beats-assistant-panel"
+        aria-label={open ? "Fermer l'assistant DANY BEATS" : "Ouvrir l'assistant DANY BEATS"}
+        className="button-contour ml-auto grid size-14 place-items-center rounded-full bg-surface text-primary ring-2 ring-primary shadow-lg transition-transform hover:scale-105"
+      >
         {open ? <X /> : <img src="/assistant-logo.svg" alt="" className="size-11" />}
       </button>
     </div>
