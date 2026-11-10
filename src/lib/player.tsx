@@ -655,8 +655,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     const fallbackArtwork = [
-      { src: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
+      { src: "/icons/app-icon-192-v2.png", sizes: "192x192", type: "image/png" },
+      { src: "/icons/app-icon-512-v2.png", sizes: "512x512", type: "image/png" },
     ];
     if (typeof MediaMetadata !== "function") return;
     const metadata = (artwork: MediaImage[]) =>

@@ -1,11 +1,12 @@
-const CACHE_NAME = "dany-beats-v3";
+const CACHE_NAME = "dany-beats-v4";
 const APP_SHELL = [
   "/manifest.json",
   "/favicon.ico",
   "/dany-beats.svg",
   "/assistant-logo.svg",
-  "/icons/app-icon-192.png",
-  "/icons/app-icon-512.png",
+  "/icons/app-icon-192-v2.png",
+  "/icons/app-icon-512-v2.png",
+  "/icons/app-icon-512-maskable-v2.png",
 ];
 
 self.addEventListener("install", (event) => {
