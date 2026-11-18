@@ -177,19 +177,48 @@ function AdminBeats() {
         youtube_url: state.youtube_url.trim() || null,
         published_at: state.status === "published" ? new Date().toISOString() : null,
       };
+      let wasPublished = false;
+      let beatId = state.id;
       if (state.id) {
+        const { data: existing, error: existingError } = await supabase
+          .from("beats")
+          .select("status")
+          .eq("id", state.id)
+          .single();
+        if (existingError) throw existingError;
+        wasPublished = existing.status === "published";
         const { error } = await supabase.from("beats").update(payload).eq("id", state.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("beats").insert({ ...payload, created_by: user!.id });
+        const { data, error } = await supabase
+          .from("beats")
+          .insert({ ...payload, created_by: user!.id })
+          .select("id")
+          .single();
         if (error) throw error;
+        beatId = data.id;
       }
+      return {
+        justPublished: state.status === "published" && !wasPublished,
+        beatId,
+      };
     },
-    onSuccess: () => {
+    onSuccess: async ({ justPublished, beatId }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-beats"] });
       queryClient.invalidateQueries({ queryKey: ["beats", "published"] });
       setForm(null);
       toast.success("Beat enregistré");
+      if (justPublished && beatId) {
+        try {
+          const { error } = await supabase.functions.invoke("send-beat-push", {
+            body: { beatId },
+          });
+          if (error) throw error;
+        } catch (error) {
+          console.error("Le beat est publié, mais sa notification Push n'a pas été envoyée.", error);
+          toast.error("Beat publié, mais les notifications Push n'ont pas pu être envoyées.");
+        }
+      }
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Le beat n'a pas pu être enregistré."),

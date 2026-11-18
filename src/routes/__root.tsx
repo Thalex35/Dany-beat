@@ -17,6 +17,7 @@ import { AuthProvider } from "../lib/auth";
 import { PlayerProvider } from "../lib/player";
 import { PlayerBar } from "../components/site/PlayerBar";
 import { PwaInstallPrompt } from "../components/site/PwaInstallPrompt";
+import { BeatNotificationCenter } from "../components/site/BeatNotificationCenter";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useRealtimeSync } from "../lib/realtime";
@@ -196,6 +197,7 @@ function RootContent() {
         <PlayerBar />
         <Toaster position="top-center" />
         <PwaInstallPrompt />
+        <BeatNotificationCenter />
       </PlayerProvider>
     </AuthProvider>
   );
