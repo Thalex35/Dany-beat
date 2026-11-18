@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { playerTrackFromBeat } from "./player";
+import {
+  nextTrackInQueue,
+  orderFeaturedTracks,
+  playerTrackFromBeat,
+  youtubeFallbackTrack,
+} from "./player";
 
 const baseBeat = {
   id: "beat-1",
@@ -14,19 +19,63 @@ const baseBeat = {
 };
 
 describe("playerTrackFromBeat", () => {
-  it("uses YouTube playback for YouTube beats even if an uploaded preview exists", () => {
+  it("plays an uploaded preview when a YouTube beat has one", () => {
     const track = playerTrackFromBeat({ ...baseBeat, preview_path: "flou/preview.mp3" });
 
-    expect(track.mediaSource).toBe("youtube");
+    expect(track.mediaSource).toBe("upload");
     expect(track.previewPath).toBe("flou/preview.mp3");
     expect(track.youtubeUrl).toBe(baseBeat.youtube_url);
   });
 
-  it("uses YouTube playback when there is no uploaded preview", () => {
+  it("keeps YouTube playback when no preview file is available", () => {
     const track = playerTrackFromBeat(baseBeat);
 
     expect(track.mediaSource).toBe("youtube");
     expect(track.previewPath).toBeNull();
     expect(track.youtubeUrl).toBe(baseBeat.youtube_url);
+  });
+
+  it("falls back to the YouTube link when an uploaded preview cannot play", () => {
+    const track = playerTrackFromBeat({ ...baseBeat, preview_path: "flou/preview.mp3" });
+
+    expect(youtubeFallbackTrack(track)).toMatchObject({
+      mediaSource: "youtube",
+      previewPath: "flou/preview.mp3",
+      youtubeUrl: baseBeat.youtube_url,
+    });
+  });
+
+  it("does not fall back without a valid YouTube link", () => {
+    const track = playerTrackFromBeat({
+      ...baseBeat,
+      preview_path: "flou/preview.mp3",
+      youtube_url: null,
+    });
+
+    expect(youtubeFallbackTrack(track)).toBeNull();
+  });
+
+  it("returns the next beat in queue order without wrapping at the end", () => {
+    const first = playerTrackFromBeat(baseBeat);
+    const second = playerTrackFromBeat({ ...baseBeat, id: "beat-2" });
+    const queue = [first, second];
+
+    expect(nextTrackInQueue(queue, first.id)).toBe(second);
+    expect(nextTrackInQueue(queue, second.id)).toBeNull();
+    expect(nextTrackInQueue(queue, "missing")).toBeNull();
+  });
+
+  it("plays featured beats first, then appends the remaining catalogue without duplicates", () => {
+    const first = playerTrackFromBeat(baseBeat);
+    const second = playerTrackFromBeat({ ...baseBeat, id: "beat-2" });
+    const third = playerTrackFromBeat({ ...baseBeat, id: "beat-3" });
+    const fourth = playerTrackFromBeat({ ...baseBeat, id: "beat-4" });
+
+    expect(orderFeaturedTracks([second, first], [first, third, second, fourth])).toEqual([
+      second,
+      first,
+      third,
+      fourth,
+    ]);
   });
 });

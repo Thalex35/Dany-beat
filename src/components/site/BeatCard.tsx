@@ -6,7 +6,7 @@ import { Cover } from "@/components/site/Cover";
 import { LikeButton } from "@/components/site/LikeButton";
 import { formatCount, formatPrice, type Beat, type BeatStats } from "@/lib/beats";
 import { downloadFile, downloadName, useSignedUrl } from "@/lib/media";
-import { playerTrackFromBeat, usePlayer } from "@/lib/player";
+import { playerTrackFromBeat, usePlayer, type PlayerTrack } from "@/lib/player";
 import { useAuth } from "@/lib/auth";
 import { useCartIds, useToggleCart } from "@/lib/realtime";
 import { safeAuthRedirect } from "@/lib/validation";
@@ -63,20 +63,24 @@ export function BeatCard({
   beat,
   stats,
   queue,
+  playbackQueue,
+  playbackQueueLoading = false,
 }: {
   beat: Beat;
   stats?: BeatStats;
   queue?: Beat[];
+  playbackQueue?: PlayerTrack[];
+  playbackQueueLoading?: boolean;
 }) {
   const { current, playing, finished, toggle, play } = usePlayer();
   const isYoutube = beat.media_source === "youtube";
+  const usesYoutubePlayback = isYoutube && !beat.preview_path;
   const track = playerTrackFromBeat(beat);
-  const playerQueue = queue
-    ?.filter((queuedBeat) =>
-      queuedBeat.media_source === "youtube" ? queuedBeat.youtube_url : queuedBeat.preview_path,
-    )
-    .map(playerTrackFromBeat);
-  const { data: previewUrl } = useSignedUrl("previews", beat.preview_path);
+  const playerQueue = playbackQueue ?? queue?.map(playerTrackFromBeat);
+  const { data: previewUrl } = useSignedUrl(
+    "previews",
+    usesYoutubePlayback ? null : beat.preview_path,
+  );
   const isCurrent = current?.id === beat.id;
   const isPlaying = isCurrent && playing;
 
@@ -86,6 +90,7 @@ export function BeatCard({
         <Link
           to="/beats/$slug"
           params={{ slug: beat.slug }}
+          search={{ autoplay: false }}
           aria-label={`Ouvrir ${beat.title}`}
           className="block h-full w-full"
         >
@@ -114,6 +119,7 @@ export function BeatCard({
             <Link
               to="/beats/$slug"
               params={{ slug: beat.slug }}
+              search={{ autoplay: false }}
               className="premium-link hover:text-primary"
             >
               {beat.title}
@@ -131,30 +137,23 @@ export function BeatCard({
       <div className="public-beat-actions flex items-center gap-4">
         <button
           type="button"
-          disabled={isYoutube ? !beat.youtube_url : !beat.preview_path}
+          disabled={playbackQueueLoading && !isCurrent}
           onClick={() => {
             if (isCurrent) toggle();
             else play(track, playerQueue);
           }}
           aria-label={
-            finished && isCurrent
-              ? `Rejouer ${beat.title}`
-              : isPlaying
-                ? `Mettre ${beat.title} en pause`
-                : isYoutube
-                  ? `Lire ${beat.title} sur YouTube`
-                  : beat.preview_path
-                  ? `Écouter ${beat.title}`
-                  : `Aucun extrait audio disponible pour ${beat.title}`
+            playbackQueueLoading && !isCurrent
+              ? "Chargement de la file de lecture"
+              : finished && isCurrent
+                ? `Rejouer ${beat.title}`
+                : isPlaying
+                  ? `Mettre ${beat.title} en pause`
+                  : usesYoutubePlayback
+                    ? `Lire ${beat.title} sur YouTube`
+                    : `Écouter ${beat.title}`
           }
-          title={
-            isYoutube
-              ? `Lire ${beat.title} sur YouTube`
-              : beat.preview_path
-                ? `Écouter ${beat.title}`
-                : "Aucun extrait audio disponible"
-          }
-          className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+          className="button-contour grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform hover:scale-105 disabled:cursor-wait disabled:opacity-60"
         >
           {finished && isCurrent ? (
             <RotateCcw className="size-4" />

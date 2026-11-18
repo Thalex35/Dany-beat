@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useCartIds } from "@/lib/realtime";
 import { useSettings } from "@/lib/settings";
+import danyLogo from "@/assets/danyLogo.png";
 
 const links = [
   { to: "/", label: "Accueil" },
@@ -24,8 +25,18 @@ export function Header() {
   return (
     <header className="site-header sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-        <Link to="/" className="site-brand font-display text-xl font-semibold tracking-tighter uppercase">
-          {settings?.producer_name ?? "Dany Beats"}
+        <Link
+          to="/"
+          className="site-brand inline-flex items-center"
+          aria-label={`${settings?.producer_name ?? "Dany Beats"} — Accueil`}
+        >
+          <img
+            src={danyLogo}
+            alt={settings?.producer_name ?? "Dany Beats"}
+            className="size-16 object-contain"
+            width={64}
+            height={64}
+          />
         </Link>
 
         <nav aria-label="Navigation principale" className="hidden items-center gap-8 md:flex">

@@ -43,6 +43,7 @@ import { useSettings } from "@/lib/settings";
 import { PUBLIC_CATALOGUE_CACHE_MAX_AGE } from "@/lib/catalogue-cache";
 
 export const Route = createFileRoute("/beats_/$slug")({
+  validateSearch: (search: Record<string, unknown>) => ({ autoplay: search["autoplay"] === true }),
   head: ({ params }) => {
     const name = params.slug.replace(/-/g, " ");
     const title = `${name} — instrumentale | Dany Beats`;
@@ -68,9 +69,10 @@ export const Route = createFileRoute("/beats_/$slug")({
 
 function BeatDetailPage() {
   const { slug } = Route.useParams();
+  const { autoplay } = Route.useSearch();
   const { profile } = useAuth();
   const { data: settings } = useSettings();
-  const { current, playing, finished, toggle, play } = usePlayer();
+  const { current, playing, finished, toggle, play, setQueue } = usePlayer();
   const [licenseIndex, setLicenseIndex] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
 
@@ -92,12 +94,36 @@ function BeatDetailPage() {
   const stats = useQuery(beatStatsQuery(beatQuery.data?.id ? [beatQuery.data.id] : []));
   const beat = beatQuery.data ?? null;
   const isYoutube = beat?.media_source === "youtube";
-  const playbackQueue = useQuery({ ...publishedPlaybackQueueQuery, enabled: isYoutube });
-  const previewUrl = useSignedUrl("previews", beat?.preview_path).data;
+  const usesYoutubePlayback = isYoutube && !beat?.preview_path;
+  const playbackQueue = useQuery(publishedPlaybackQueueQuery);
+  const previewUrl = useSignedUrl(
+    "previews",
+    usesYoutubePlayback ? null : beat?.preview_path,
+  ).data;
 
   useEffect(() => {
     if (beat) void track("beat_view", { beatId: beat.id, once: true });
   }, [beat]);
+
+  useEffect(() => {
+    if (current?.id !== beat?.id || !playbackQueue.data) return;
+    setQueue(playbackQueue.data.map(playerTrackFromBeat));
+  }, [beat?.id, current?.id, playbackQueue.data, setQueue]);
+
+  useEffect(() => {
+    if (!autoplay || !beat || !isYoutube || !beat.youtube_url || !playbackQueue.isSuccess) return;
+    if (current?.id === beat.id) return;
+    play(playerTrackFromBeat(beat), playbackQueue.data.map(playerTrackFromBeat));
+  }, [
+    autoplay,
+    beat,
+    current?.id,
+    isYoutube,
+    play,
+    playbackQueue.data,
+    playbackQueue.isSuccess,
+    previewUrl,
+  ]);
 
   if (beatQuery.isPending) {
     return (
@@ -222,14 +248,7 @@ function BeatDetailPage() {
             <div className="mt-5 flex flex-wrap items-center gap-3 sm:gap-4">
               <Button
                 size="md"
-                disabled={isYoutube ? !beat.youtube_url : !beat.preview_path}
-                title={
-                  isYoutube
-                    ? "Lire sur YouTube"
-                    : beat.preview_path
-                      ? undefined
-                      : "Aucun extrait audio disponible"
-                }
+                disabled={usesYoutubePlayback ? !beat.youtube_url : !beat.preview_path}
                 onClick={() => {
                   if (isCurrent) {
                     toggle();
@@ -237,15 +256,7 @@ function BeatDetailPage() {
                   }
                   play(
                     playerTrackFromBeat(beat),
-                    isYoutube
-                      ? playbackQueue.data
-                          ?.filter((queuedBeat) =>
-                            queuedBeat.media_source === "youtube"
-                              ? queuedBeat.youtube_url
-                              : queuedBeat.preview_path,
-                          )
-                          .map(playerTrackFromBeat)
-                      : undefined,
+                    playbackQueue.data?.map(playerTrackFromBeat),
                   );
                 }}
               >
@@ -254,11 +265,9 @@ function BeatDetailPage() {
                   ? "Mettre en pause"
                   : finished && isCurrent
                     ? "Rejouer"
-                    : isYoutube
+                    : usesYoutubePlayback
                       ? "Lire sur YouTube"
-                      : beat.preview_path
-                      ? "Écouter l'extrait"
-                      : "Extrait audio indisponible"}
+                      : "Écouter l'extrait"}
               </Button>
               {s ? (
                 <LikeButton beatId={beat.id} count={s.likes} />

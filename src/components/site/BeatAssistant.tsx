@@ -1,117 +1,124 @@
-import { Bot, MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { MessageCircle, Pause, Play, RotateCcw, Send, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Cover } from "@/components/site/Cover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  answerMusicQuestion,
+  answerSiteQuestion,
+  isBeatSearchRequest,
+  parseBeatSearch,
+  type AssistantAction,
+} from "@/lib/assistant";
 import { BEAT_COLUMNS, formatPrice, type Beat } from "@/lib/beats";
 import { openWhatsapp } from "@/lib/contact";
 import { signedUrl } from "@/lib/media";
 import { playerTrackFromBeat, usePlayer } from "@/lib/player";
 import { useSettings } from "@/lib/settings";
 
-const suggestions = ["Trouver un beat", "Drill sombre", "Afro", "Sad", "140 BPM"];
+const suggestions = [
+  "Comment acheter un beat ?",
+  "Où sont mes favoris ?",
+  "Comment filtrer par BPM ?",
+  "Je cherche un beat drill à 140 BPM",
+];
 
-type ChatMessage = { id: number; role: "user" | "assistant"; text: string; contactText?: string };
-
-function normalizeMessage(text: string) {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function conversationReply(text: string) {
-  const normalized = normalizeMessage(text);
-
-  if (
-    /^(hi|hello|hey|hiya|howdy|yo|good morning|good afternoon|good evening|good night|salut|bonjour|bonsoir|coucou|cc|wesh)( there| everyone| dany| assistant| tout le monde)?( how are you| how are u| ca va| comment ca va)?$/.test(
-      normalized,
-    ) || /^(whats up|what is up)$/.test(normalized)
-  ) {
-    return "Salut ! Je peux t'aider à trouver un beat par style, ambiance ou BPM.";
-  }
-
-  if (
-    /^(thanks|thank you|thank you very much|thanks a lot|merci|merci beaucoup|je te remercie|je vous remercie)$/.test(
-      normalized,
-    )
-  ) {
-    return "Avec plaisir ! Tu cherches un autre style ou une autre ambiance ?";
-  }
-
-  if (
-    /^(help|aide|what can you do|que peux tu faire|que pouvez vous faire|comment ca marche)$/.test(
-      normalized,
-    )
-  ) {
-    return "Je peux chercher les beats publiés par style, ambiance ou BPM, puis te proposer des extraits à écouter.";
-  }
-
-  return null;
-}
-
-function parseBpm(text: string) {
-  const match = text.match(/(\d{2,3})\s*bpm/i);
-  return match ? Number(match[1]) : null;
-}
+type ChatMessage = {
+  id: number;
+  role: "user" | "assistant";
+  text: string;
+  contactText?: string;
+  actions?: AssistantAction[];
+};
 
 async function findBeats(text: string) {
-  const term = text
-    .trim()
-    .replace(/[%,(){}]/g, " ")
-    .replace(/\s+/g, " ");
-  const bpm = parseBpm(text);
-  const terms = term
-    .replace(/\bbpm\b\s*\d{2,3}/gi, "")
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word.length > 1);
+  const { bpm, terms } = parseBeatSearch(text);
   let query = supabase
     .from("beats")
     .select(BEAT_COLUMNS)
-    .eq("status", "published")
-    .limit(4);
+    .eq("status", "published");
 
-  if (term && !/^trouver un beat$|^comment acheter/i.test(term)) {
-    query = query.or(terms
-      .map((word) => `title.ilike.%${word}%,genre.ilike.%${word}%,mood.ilike.%${word}%,song_key.ilike.%${word}%`)
-      .join(","));
+  if (terms.length) {
+    const filters = terms.flatMap((word) => [
+      `title.ilike.%${word}%`,
+      `genre.ilike.%${word}%`,
+      `mood.ilike.%${word}%`,
+      `song_key.ilike.%${word}%`,
+      `tags.cs.{${word}}`,
+    ]);
+    query = query.or(filters.join(","));
   }
   if (bpm) {
-    query = query.gte("bpm", bpm - 5).lte("bpm", bpm + 5);
+    query = query.gte("bpm", Math.max(20, bpm - 5)).lte("bpm", Math.min(400, bpm + 5));
   }
+
+  query = query
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(4);
 
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as Beat[];
 }
 
-function answerFor(text: string, beats: Beat[]) {
+function answerFor(text: string, beats: Beat[]): Pick<ChatMessage, "text" | "contactText" | "actions"> {
   if (!beats.length) {
     return {
-      text: "Je n'ai pas trouvé de réponse fiable. Le producteur pourra t'aider directement sur WhatsApp.",
+      text: "Je n'ai pas trouvé de beat correspondant. Essaie un autre style ou une autre plage de BPM, ou demande conseil au producteur.",
       contactText: text,
+      actions: [
+        { label: "Modifier ma recherche", href: "/beats" },
+        { label: "Page de contact", href: "/contact" },
+      ],
     };
   }
-  return { text: `J'ai trouvé ${beats.length} beat${beats.length > 1 ? "s" : ""} qui correspondent à ta recherche.` };
+  return {
+    text: `Voici ${beats.length > 1 ? "quelques beats" : "un beat"} proche${beats.length > 1 ? "s" : ""} de ta recherche. Écoute un extrait ou ouvre le catalogue pour affiner les filtres.`,
+    actions: [{ label: "Voir tout le catalogue", href: "/beats" }],
+  };
 }
 
 export function BeatAssistant() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 1, role: "assistant", text: "Salut. Je peux chercher un beat dans le catalogue DANY BEATS." },
+    {
+      id: 1,
+      role: "assistant",
+      text: "Salut ! Je peux t'aider à trouver un beat et répondre aux questions sur le rythme, les BPM, les tonalités, les styles et la production musicale. Pose-moi aussi tes questions sur le site.",
+      actions: [
+        { label: "Explorer les beats", href: "/beats" },
+        { label: "Contact", href: "/contact" },
+      ],
+    },
   ]);
   const [recommendations, setRecommendations] = useState<Beat[]>([]);
   const [isFetching, setIsFetching] = useState(false);
+  const messageEndRef = useRef<HTMLDivElement>(null);
+  const nextMessageId = useRef(2);
+  const navigate = useNavigate();
   const { current, playing, finished, toggle, play } = usePlayer();
   const { data: settings } = useSettings();
   const whatsappReady = !!settings?.whatsapp_number?.replace(/\D/g, "");
+  const actionNavigators: Record<AssistantAction["href"], () => void> = {
+    "/": () => void navigate({ to: "/" }),
+    "/beats": () => void navigate({ to: "/beats" }),
+    "/about": () => void navigate({ to: "/about" }),
+    "/contact": () => void navigate({ to: "/contact" }),
+    "/auth": () => void navigate({ to: "/auth" }),
+    "/auth?redirect=%2Fprofile%23favorites": () =>
+      void navigate({ to: "/auth", search: { redirect: "/profile#favorites" } }),
+    "/auth?redirect=%2Fprofile%23cart": () =>
+      void navigate({ to: "/auth", search: { redirect: "/profile#cart" } }),
+  };
+
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: open ? "smooth" : "auto" });
+  }, [isFetching, messages, open, recommendations]);
 
   useEffect(() => {
     for (const beat of recommendations) {
@@ -125,15 +132,47 @@ export function BeatAssistant() {
 
   async function send(value = input) {
     const text = value.trim();
-    if (!text) return;
+    if (!text || isFetching) return;
     setInput("");
-    const id = Date.now();
-    setMessages((current) => [...current, { id, role: "user", text }]);
+    const userMessageId = nextMessageId.current++;
+    const assistantMessageId = nextMessageId.current++;
+    setMessages((current) => [...current, { id: userMessageId, role: "user", text }]);
 
-    const reply = conversationReply(text);
-    if (reply) {
+    const musicAnswer = answerMusicQuestion(text);
+    if (musicAnswer) {
       setRecommendations([]);
-      setMessages((current) => [...current, { id: id + 1, role: "assistant", text: reply }]);
+      setMessages((current) => [
+        ...current,
+        { id: assistantMessageId, role: "assistant", ...musicAnswer },
+      ]);
+      return;
+    }
+
+    const answer = answerSiteQuestion(text);
+    if (answer) {
+      setRecommendations([]);
+      setMessages((current) => [
+        ...current,
+        { id: assistantMessageId, role: "assistant", ...answer },
+      ]);
+      return;
+    }
+
+    if (!isBeatSearchRequest(text)) {
+      setRecommendations([]);
+      setMessages((current) => [
+        ...current,
+        {
+          id: assistantMessageId,
+          role: "assistant",
+          text: "Je ne veux pas inventer une réponse. Je peux aider sur le catalogue, les beats, le compte, les favoris, le panier et les achats. Pour une autre question, contacte le producteur.",
+          contactText: text,
+          actions: [
+            { label: "Explorer les beats", href: "/beats" },
+            { label: "Page de contact", href: "/contact" },
+          ],
+        },
+      ]);
       return;
     }
 
@@ -141,16 +180,21 @@ export function BeatAssistant() {
     try {
       const beats = await findBeats(text);
       setRecommendations(beats);
-      setMessages((current) => [...current, { id: id + 1, role: "assistant", ...answerFor(text, beats) }]);
-    } catch {
+      setMessages((current) => [
+        ...current,
+        { id: assistantMessageId, role: "assistant", ...answerFor(text, beats) },
+      ]);
+    } catch (error) {
+      console.error("Impossible de rechercher des beats pour l'assistant.", error);
       setRecommendations([]);
       setMessages((current) => [
         ...current,
         {
-          id: id + 1,
+          id: assistantMessageId,
           role: "assistant",
           text: "Je n'arrive pas à consulter le catalogue. Le producteur pourra t'aider directement sur WhatsApp.",
           contactText: text,
+          actions: [{ label: "Page de contact", href: "/contact" }],
         },
       ]);
     } finally {
@@ -159,20 +203,48 @@ export function BeatAssistant() {
   }
 
   return (
-    <div className="fixed right-5 bottom-24 z-50 sm:right-8 sm:bottom-8">
+    <div className="fixed right-5 bottom-24 z-[70] sm:right-8 sm:bottom-8">
       {open ? (
-        <section className="assistant-panel mb-3 flex h-[min(36rem,calc(100vh-7rem))] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl bg-background shadow-2xl ring-1 ring-border">
+        <section
+          id="dany-beats-assistant-panel"
+          className="assistant-panel mb-3 flex h-[min(36rem,calc(100vh-7rem))] w-[min(24rem,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-3xl bg-background shadow-2xl ring-1 ring-border"
+        >
           <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
             <div className="flex items-center gap-2">
-              <span className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground"><Bot className="size-4" /></span>
-              <div><p className="text-sm font-semibold">DANY BEATS AI</p><p className="text-[11px] text-muted-foreground">Assistant catalogue</p></div>
+              <span className="grid size-9 place-items-center rounded-full bg-surface-2 ring-1 ring-border">
+                <img src="/assistant-logo.svg" alt="" className="size-8" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">ASSISTANT DANY BEATS</p>
+                <p className="text-[11px] text-muted-foreground">Conseils musicaux et aide du site</p>
+              </div>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Fermer l'assistant" className="button-contour grid size-8 place-items-center rounded-full text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
           </header>
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          <div
+            className="flex-1 space-y-3 overflow-y-auto p-4"
+            role="log"
+            aria-label="Conversation avec l'assistante"
+            aria-live="polite"
+          >
             {messages.map((message) => (
               <div key={message.id} className={message.role === "user" ? "ml-8 rounded-2xl rounded-br-sm bg-primary p-3 text-sm text-primary-foreground" : "mr-5 rounded-2xl rounded-bl-sm bg-surface p-3 text-sm text-foreground"}>
                 {message.text}
+                {message.actions?.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {message.actions.map((action) => (
+                      <Button
+                        key={action.href}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={actionNavigators[action.href]}
+                      >
+                        {action.label}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
                 {message.contactText ? (
                   <Button
                     type="button"
@@ -207,46 +279,27 @@ export function BeatAssistant() {
                       youtubeUrl={beat.media_source === "youtube" ? beat.youtube_url : null}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium">{beat.title}</p>
+                      <Link
+                        to="/beats/$slug"
+                        params={{ slug: beat.slug }}
+                        search={{ autoplay: false }}
+                        className="block truncate text-xs font-medium hover:text-primary"
+                      >
+                        {beat.title}
+                      </Link>
                       <p className="text-[11px] text-muted-foreground">{beat.bpm ?? "—"} BPM · {formatPrice(beat.price)}</p>
                     </div>
                     <button
                       type="button"
-                      disabled={
-                        beat.media_source === "youtube"
-                          ? !beat.youtube_url
-                          : !beat.preview_path
-                      }
                       aria-label={
-                        beat.media_source === "youtube" && beat.youtube_url
-                          ? `Lire ${beat.title} sur YouTube`
-                          : !beat.preview_path
-                          ? `Aucun extrait audio disponible pour ${beat.title}`
-                          : current?.id === beat.id && playing
-                            ? `Mettre ${beat.title} en pause`
-                            : `Lire ${beat.title}`
+                        current?.id === beat.id && playing
+                          ? `Mettre ${beat.title} en pause`
+                          : `Lire ${beat.title}`
                       }
-                      title={
-                        beat.media_source === "youtube" && beat.youtube_url
-                          ? `Lire ${beat.title} sur YouTube`
-                          : beat.preview_path
-                            ? undefined
-                            : "Aucun extrait audio disponible"
-                      }
-                      className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background disabled:cursor-not-allowed disabled:opacity-40"
+                      className="button-contour grid size-8 place-items-center rounded-full bg-foreground text-background"
                       onClick={() => {
                         if (current?.id === beat.id) toggle();
-                        else
-                          play(
-                            playerTrackFromBeat(beat),
-                            recommendations
-                              .filter((recommendedBeat) =>
-                                recommendedBeat.media_source === "youtube"
-                                  ? recommendedBeat.youtube_url
-                                  : recommendedBeat.preview_path,
-                              )
-                              .map(playerTrackFromBeat),
-                          );
+                        else play(playerTrackFromBeat(beat), recommendations.map(playerTrackFromBeat));
                       }}
                     >
                       {current?.id === beat.id && playing ? (
@@ -261,20 +314,52 @@ export function BeatAssistant() {
                 ))}
               </div>
             ) : null}
+            <div ref={messageEndRef} />
           </div>
           <div className="border-t border-border p-3">
             <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
-              {suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => void send(suggestion)} className="assistant-chip shrink-0 rounded-full bg-surface px-2.5 py-1 text-[11px] text-muted-foreground">{suggestion}</button>)}
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  disabled={isFetching}
+                  onClick={() => void send(suggestion)}
+                  className="assistant-chip shrink-0 rounded-full bg-surface px-2.5 py-1 text-[11px] text-muted-foreground disabled:opacity-50"
+                >
+                  {suggestion}
+                </button>
+              ))}
             </div>
-            <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); void send(); }}>
-              <Input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Décris ton beat idéal" aria-label="Message à l'assistant" />
-              <Button type="submit" size="icon" aria-label="Envoyer"><Send className="size-4" /></Button>
+            <form
+              className="flex items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void send();
+              }}
+            >
+              <Input
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                placeholder="Pose une question ou décris un beat"
+                aria-label="Message à l'assistant"
+                disabled={isFetching}
+              />
+              <Button type="submit" size="icon" aria-label="Envoyer" disabled={isFetching || !input.trim()}>
+                <Send className="size-4" />
+              </Button>
             </form>
           </div>
         </section>
       ) : null}
-      <button type="button" onClick={() => setOpen((current) => !current)} aria-label={open ? "Fermer DANY BEATS AI" : "Ouvrir DANY BEATS AI"} className="button-contour ml-auto grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105">
-        {open ? <X /> : <MessageCircle />}
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        aria-controls="dany-beats-assistant-panel"
+        aria-label={open ? "Fermer l'assistant DANY BEATS" : "Ouvrir l'assistant DANY BEATS"}
+        className="button-contour ml-auto grid size-14 place-items-center rounded-full bg-surface text-primary ring-2 ring-primary shadow-lg transition-transform hover:scale-105"
+      >
+        {open ? <X /> : <img src="/assistant-logo.svg" alt="" className="size-11" />}
       </button>
     </div>
   );

@@ -1,13 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { getYoutubeVideoId, youtubeEmbedUrl, youtubeThumbnailUrl } from "./youtube";
+import {
+  getYoutubeVideoId,
+  youtubeEmbedUrl,
+  youtubePlaybackErrorMessage,
+  youtubeThumbnailUrl,
+} from "./youtube";
 
 describe("YouTube URL helpers", () => {
-  it("parses watch, short, and Shorts URLs", () => {
+  it("parses watch, short, embed, Shorts, and YouTube Music URLs", () => {
     expect(getYoutubeVideoId("https://www.youtube.com/watch?v=abcdefghijk&t=10")).toBe(
       "abcdefghijk",
     );
     expect(getYoutubeVideoId("https://youtu.be/abcdefghijk")).toBe("abcdefghijk");
+    expect(getYoutubeVideoId("https://www.youtube.com/embed/abcdefghijk")).toBe("abcdefghijk");
+    expect(getYoutubeVideoId("https://music.youtube.com/watch?v=abcdefghijk")).toBe(
+      "abcdefghijk",
+    );
     expect(getYoutubeVideoId("https://youtube.com/shorts/abcdefghijk")).toBe("abcdefghijk");
   });
 
@@ -21,22 +30,21 @@ describe("YouTube URL helpers", () => {
     const videoUrl = "https://youtu.be/abcdefghijk";
     expect(youtubeThumbnailUrl(videoUrl)).toBe("https://i.ytimg.com/vi/abcdefghijk/hqdefault.jpg");
     expect(youtubeEmbedUrl(videoUrl)).toBe(
-      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&controls=1",
+      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0",
     );
-    const apiEmbedUrl = youtubeEmbedUrl(videoUrl, {
-      enableApi: true,
-      origin: "https://dany-beat.vercel.app",
-    });
-    expect(apiEmbedUrl).toContain(
-      "?playsinline=1&rel=0&controls=1&enablejsapi=1&origin=https%3A%2F%2Fdany-beat.vercel.app",
+    expect(youtubeEmbedUrl(videoUrl, { enableApi: true, autoPlay: true })).toBe(
+      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&enablejsapi=1&autoplay=1",
     );
-    expect(apiEmbedUrl).not.toContain("autoplay=1");
-    expect(
-      youtubeEmbedUrl(videoUrl, {
-        enableApi: true,
-        autoplay: true,
-        origin: "https://dany-beat.vercel.app",
-      }),
-    ).toContain("&autoplay=1");
+    expect(youtubeEmbedUrl(videoUrl, { enableApi: true, autoPlay: true, controls: false })).toBe(
+      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&enablejsapi=1&autoplay=1&controls=0",
+    );
+    expect(youtubeEmbedUrl(videoUrl, { enableApi: true, origin: "https://beats.example" })).toBe(
+      "https://www.youtube-nocookie.com/embed/abcdefghijk?playsinline=1&rel=0&enablejsapi=1&origin=https%3A%2F%2Fbeats.example",
+    );
+  });
+
+  it("explains YouTube loader failures and video playback restrictions", () => {
+    expect(youtubePlaybackErrorMessage()).toContain("YouTube n'est pas bloqué");
+    expect(youtubePlaybackErrorMessage(101)).toContain("bloque sa lecture");
   });
 });

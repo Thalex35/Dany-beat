@@ -20,11 +20,13 @@ import {
 } from "@/lib/media-session";
 import {
   listenForAudioEnded,
-  shouldAutoAdvanceAfterPlayError,
-  shouldAutoAdvanceToNext,
   syncPlaybackLifecycle,
 } from "@/lib/player-lifecycle";
-import { getYoutubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
+import {
+  getYoutubeVideoId,
+  youtubePlaybackErrorMessage,
+  youtubeThumbnailUrl,
+} from "@/lib/youtube";
 
 export type PlayerTrack = {
   id: string;
@@ -62,13 +64,35 @@ export function playerTrackFromBeat(beat: {
     bpm: beat.bpm,
     coverPath: beat.cover_path,
     previewPath: beat.preview_path,
-    mediaSource: beat.media_source,
+    mediaSource: beat.preview_path ? "upload" : beat.media_source,
     youtubeUrl: beat.youtube_url,
   };
 }
 
+export function youtubeFallbackTrack(track: PlayerTrack): PlayerTrack | null {
+  if (track.mediaSource === "youtube" || !getYoutubeVideoId(track.youtubeUrl)) return null;
+  return { ...track, mediaSource: "youtube" };
+}
+
+export function nextTrackInQueue(queue: PlayerTrack[], currentId: string): PlayerTrack | null {
+  const index = queue.findIndex((track) => track.id === currentId);
+  return index < 0 ? null : (queue[index + 1] ?? null);
+}
+
+export function orderFeaturedTracks(
+  featuredTracks: PlayerTrack[],
+  catalogueTracks: PlayerTrack[],
+): PlayerTrack[] {
+  const featuredIds = new Set(featuredTracks.map((track) => track.id));
+  return [
+    ...featuredTracks,
+    ...catalogueTracks.filter((track) => !featuredIds.has(track.id)),
+  ];
+}
+
 type PlayerValue = {
   current: PlayerTrack | null;
+  youtubeRetryKey: number;
   playing: boolean;
   finished: boolean;
   loading: boolean;
@@ -77,19 +101,15 @@ type PlayerValue = {
   duration: number;
   volume: number;
   loop: boolean;
-  autoPlayNext: boolean;
+  setQueue: (queue: PlayerTrack[]) => void;
   play: (track: PlayerTrack, queue?: PlayerTrack[]) => void;
   toggle: (track?: PlayerTrack) => void;
   setLoop: (value: boolean) => void;
-  setAutoPlayNext: (value: boolean) => void;
   seek: (seconds: number) => void;
   setVolume: (value: number) => void;
-  next: () => void;
-  previous: () => void;
   registerYoutubeControls: (controls: YoutubeControls | null) => void;
   setYoutubePlaying: (value: boolean) => void;
   setYoutubeProgress: (progress: number, duration: number) => void;
-  setYoutubeVolume: (volume: number) => void;
   setYoutubeError: (code?: number) => void;
   finishYoutube: () => void;
   stop: () => void;
@@ -122,6 +142,7 @@ function waitForAudioMetadata(audio: HTMLAudioElement) {
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [current, setCurrent] = useState<PlayerTrack | null>(null);
+  const [youtubeRetryKey, setYoutubeRetryKey] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [finished, setFinished] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -130,13 +151,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(0.9);
   const [loop, setLoopState] = useState(false);
-  const [autoPlayNext, setAutoPlayNextState] = useState(false);
   const queueRef = useRef<PlayerTrack[]>([]);
   const currentRef = useRef<PlayerTrack | null>(null);
   const youtubeControlsRef = useRef<YoutubeControls | null>(null);
   const loopRef = useRef(false);
-  const autoPlayNextRef = useRef(false);
-  const playRef = useRef<(track: PlayerTrack, autoAdvance?: boolean) => void>(() => undefined);
+  const playRef = useRef<(track: PlayerTrack) => void>(() => undefined);
   const playRequestRef = useRef(0);
   const previewUrlsRef = useRef(new Map<string, { path: string; url: string; expiresAt: number }>());
   const endedRequestRef = useRef<number | null>(null);
@@ -156,6 +175,42 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   progressRef.current = progress;
   durationRef.current = duration;
   volumeRef.current = volume;
+
+  const fallbackToYoutube = useCallback((track: PlayerTrack) => {
+    const fallbackTrack = youtubeFallbackTrack(track);
+    if (!fallbackTrack || currentRef.current?.id !== track.id) return false;
+
+    currentRef.current = fallbackTrack;
+    queueRef.current = queueRef.current.map((item) =>
+      item.id === track.id ? fallbackTrack : item,
+    );
+    setCurrent(fallbackTrack);
+    setError(null);
+    setFinished(false);
+    setProgress(0);
+    setDuration(0);
+    setYoutubeRetryKey((key) => key + 1);
+    setLoading(true);
+    setPlaying(true);
+
+    const audio = audioRef.current;
+    audio?.pause();
+    audio?.removeAttribute("src");
+    audio?.load();
+    youtubeControlsRef.current?.pause();
+    youtubeControlsRef.current = null;
+    return true;
+  }, []);
+
+  const setQueue = useCallback((queue: PlayerTrack[]) => {
+    const currentTrack = currentRef.current;
+    queueRef.current = queue.map((track) =>
+      track.id === currentTrack?.id ? currentTrack : track,
+    );
+    if (currentTrack && !queueRef.current.some((track) => track.id === currentTrack.id)) {
+      queueRef.current.push(currentTrack);
+    }
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -181,12 +236,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
         return;
       }
-      const currentIndex = queueRef.current.findIndex(
-        (track) => track.id === endedTrack.id,
-      );
-      const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
-      if (next && shouldAutoAdvanceToNext(autoPlayNextRef.current, true)) {
-        playRef.current(next, true);
+      const nextTrack = nextTrackInQueue(queueRef.current, endedTrack.id);
+      if (nextTrack) {
+        playRef.current(nextTrack);
         return;
       }
       setPlaying(false);
@@ -199,11 +251,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setFinished(false);
     };
     const onPause = () => {
+      if (currentRef.current?.mediaSource === "youtube") return;
       const session = getMediaSession();
       if (session) setMediaSessionPlaybackState(session, "paused");
       setPlaying(false);
     };
     const onErr = () => {
+      const failedTrack = currentRef.current;
+      if (failedTrack?.mediaSource === "youtube") return;
+      if (failedTrack && fallbackToYoutube(failedTrack)) return;
       setError("Cet extrait n'a pas pu être chargé.");
       setPlaying(false);
       setLoading(false);
@@ -230,7 +286,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("error", onErr);
     };
-  }, []);
+  }, [fallbackToYoutube]);
 
   const registerYoutubeControls = useCallback((controls: YoutubeControls | null) => {
     youtubeControlsRef.current = controls;
@@ -255,24 +311,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(nextDuration);
   }, []);
 
-  const setYoutubeVolume = useCallback((nextVolume: number) => {
-    setVolumeState(nextVolume);
-  }, []);
-
   const setYoutubeError = useCallback((code?: number) => {
-    const messages: Record<number, string> = {
-      2: "L'URL de cette vidéo YouTube est invalide.",
-      5: "La vidéo YouTube ne peut pas être lue dans ce navigateur.",
-      100: "Cette vidéo YouTube est indisponible ou privée.",
-      101: "Le propriétaire de cette vidéo n'autorise pas son intégration.",
-      150: "Le propriétaire de cette vidéo n'autorise pas son intégration.",
-      153: "YouTube n'a pas pu vérifier l'origine de cette requête.",
-    };
-    setError(
-      typeof code === "number"
-        ? (messages[code] ?? "La vidéo YouTube n'a pas pu être chargée.")
-        : "Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.",
-    );
+    setError(youtubePlaybackErrorMessage(code));
     setPlaying(false);
     setLoading(false);
   }, []);
@@ -289,10 +329,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setPlaying(true);
       return;
     }
-    const currentIndex = queueRef.current.findIndex((track) => track.id === currentTrack.id);
-    const next = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
-    if (next && shouldAutoAdvanceToNext(autoPlayNextRef.current, true)) {
-      playRef.current(next, true);
+    const nextTrack = nextTrackInQueue(queueRef.current, currentTrack.id);
+    if (nextTrack) {
+      playRef.current(nextTrack);
       return;
     }
     setPlaying(false);
@@ -300,14 +339,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const play = useCallback(
-    async (next: PlayerTrack, queue?: PlayerTrack[], autoAdvance = false) => {
+    async (next: PlayerTrack, queue?: PlayerTrack[]) => {
       const audio = audioRef.current;
       if (!audio) return;
-      const advanceAfterFailure = () => {
-        const currentIndex = queueRef.current.findIndex((track) => track.id === next.id);
-        const following = currentIndex >= 0 ? queueRef.current[currentIndex + 1] : undefined;
-        if (following) playRef.current(following, true);
-      };
       const request = ++playRequestRef.current;
       endedRequestRef.current = null;
       youtubeEndHandledRef.current = null;
@@ -315,55 +349,45 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!queueRef.current.some((track) => track.id === next.id)) {
         queueRef.current = queue ? [...queue, next] : [next];
       }
-      const queueIndex = queueRef.current.findIndex((track) => track.id === next.id);
-      const upcomingTrack = queueIndex >= 0 ? queueRef.current[queueIndex + 1] : undefined;
-      if (upcomingTrack?.mediaSource !== "youtube" && upcomingTrack?.previewPath) {
-        const cachedUpcoming = previewUrlsRef.current.get(upcomingTrack.id);
-        if (
-          cachedUpcoming?.path !== upcomingTrack.previewPath ||
-          cachedUpcoming.expiresAt <= Date.now()
-        ) {
-          void signedUrl("previews", upcomingTrack.previewPath).then((url) => {
-            if (url) {
-              previewUrlsRef.current.set(upcomingTrack.id, {
-                path: upcomingTrack.previewPath!,
-                url,
-                expiresAt: Date.now() + 55 * 60 * 1000,
-              });
-            }
-          });
-        }
-      }
       setError(null);
       setFinished(false);
 
       if (next.mediaSource === "youtube") {
         if (!next.youtubeUrl || !getYoutubeVideoId(next.youtubeUrl)) {
+          audio.pause();
+          audio.removeAttribute("src");
+          audio.load();
+          youtubeControlsRef.current?.pause();
+          youtubeControlsRef.current = null;
+          setCurrent(next);
+          currentRef.current = next;
+          setProgress(0);
+          setDuration(0);
           setError("Aucune URL YouTube disponible pour ce beat.");
-          if (autoAdvance) advanceAfterFailure();
+          setPlaying(false);
+          setLoading(false);
           return;
         }
         if (current?.id === next.id && current.mediaSource === "youtube") {
+          if (error) setYoutubeRetryKey((key) => key + 1);
           if (finished) {
             youtubeControlsRef.current?.seek(0);
             setProgress(0);
           }
           youtubeControlsRef.current?.play();
           setPlaying(true);
-          setLoading(!youtubeControlsRef.current);
+          setLoading(Boolean(error) || !youtubeControlsRef.current);
           return;
         }
         if (current?.mediaSource === "youtube") {
-          const videoId = getYoutubeVideoId(next.youtubeUrl);
-          if (!videoId || !youtubeControlsRef.current) {
-            setError("Le lecteur YouTube n'est pas prêt. Appuyez sur Lire pour reprendre.");
-            setPlaying(false);
-            setLoading(false);
-            return;
+          if (error && !youtubeControlsRef.current) {
+            setYoutubeRetryKey((key) => key + 1);
           }
-          youtubeControlsRef.current.loadVideo(videoId);
+          const videoId = getYoutubeVideoId(next.youtubeUrl);
+          if (videoId) youtubeControlsRef.current?.loadVideo(videoId);
           setCurrent(next);
           currentRef.current = next;
+          youtubeEndHandledRef.current = next.id;
           setProgress(0);
           setDuration(0);
           setLoading(true);
@@ -405,16 +429,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           if (request === playRequestRef.current) {
             setError("Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.");
             setPlaying(false);
-            if (autoAdvance && shouldAutoAdvanceAfterPlayError(playError)) {
-              advanceAfterFailure();
-            }
           }
         }
         return;
       }
       if (!next.previewPath) {
         setError("Aucun extrait disponible pour ce beat.");
-        if (autoAdvance) advanceAfterFailure();
+        setPlaying(false);
+        setLoading(false);
         return;
       }
       const restorePosition = current?.id === next.id && !audio.ended ? audio.currentTime : 0;
@@ -424,6 +446,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentRef.current = next;
       setProgress(0);
       setDuration(0);
+      let youtubeFallbackStarted = false;
       try {
         const url =
           cachedUrl ??
@@ -431,8 +454,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           (await signedUrl("previews", next.previewPath, { refresh: refreshUrl }));
         if (request !== playRequestRef.current) return;
         if (!url) {
-          setError("L'extrait audio est indisponible. Réessayez dans un instant.");
-          if (autoAdvance) advanceAfterFailure();
+          if (fallbackToYoutube(next)) {
+            youtubeFallbackStarted = true;
+          } else {
+            setError("L'extrait audio est indisponible. Réessayez dans un instant.");
+            setPlaying(false);
+          }
           return;
         }
         previewUrlsRef.current.set(next.id, {
@@ -457,17 +484,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void track("beat_play", { beatId: next.id, once: true });
       } catch (playError) {
         if (request === playRequestRef.current) {
-          setError("Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.");
-          setPlaying(false);
-          if (autoAdvance && shouldAutoAdvanceAfterPlayError(playError)) {
-            advanceAfterFailure();
+          const alreadyUsingYoutube =
+            currentRef.current?.id === next.id &&
+            currentRef.current.mediaSource === "youtube";
+          if (alreadyUsingYoutube) {
+            youtubeFallbackStarted = true;
+          } else if (
+            !(playError instanceof DOMException && playError.name === "NotAllowedError") &&
+            fallbackToYoutube(next)
+          ) {
+            youtubeFallbackStarted = true;
+          } else {
+            setError("Le navigateur a bloqué la lecture. Appuyez sur Lire pour réessayer.");
+            setPlaying(false);
           }
         }
       } finally {
-        if (request === playRequestRef.current) setLoading(false);
+        if (request === playRequestRef.current && !youtubeFallbackStarted) setLoading(false);
       }
     },
-    [current, finished],
+    [current, error, finished, fallbackToYoutube],
   );
 
   const toggle = useCallback(
@@ -479,11 +515,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (current?.mediaSource === "youtube") {
+        if (!getYoutubeVideoId(current.youtubeUrl)) {
+          setError("Aucune URL YouTube valide n'est disponible pour ce beat.");
+          setPlaying(false);
+          setLoading(false);
+          return;
+        }
         if (playing) {
           youtubeControlsRef.current?.pause();
           setPlaying(false);
         } else {
-          setError(null);
+          if (error) {
+            setError(null);
+            setYoutubeRetryKey((key) => key + 1);
+            setLoading(true);
+          }
           if (finished) {
             youtubeControlsRef.current?.seek(0);
             setProgress(0);
@@ -502,38 +548,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void play(current);
       }
     },
-    [current, finished, playing, play],
+    [current, error, finished, playing, play],
   );
 
-  const next = useCallback(() => {
-    const queue = queueRef.current;
-    const index = queue.findIndex((track) => track.id === currentRef.current?.id);
-    const following = index >= 0 ? queue[index + 1] : undefined;
-    if (following) playRef.current(following);
-  }, []);
-
-  const previous = useCallback(() => {
-    const track = currentRef.current;
-    if (!track) return;
-    if (progressRef.current > 3) {
-      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
-      else if (audioRef.current) audioRef.current.currentTime = 0;
-      setProgress(0);
-      return;
-    }
-
-    const queue = queueRef.current;
-    const index = queue.findIndex((item) => item.id === track.id);
-    const preceding = queue[index - 1];
-    if (preceding) playRef.current(preceding);
-    else {
-      if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
-      else if (audioRef.current) audioRef.current.currentTime = 0;
-      setProgress(0);
-    }
-  }, []);
-
-  playRef.current = (track, autoAdvance) => void play(track, undefined, autoAdvance);
+  playRef.current = (track) => void play(track);
 
   useEffect(() => {
     mediaActionsRef.current = {
@@ -558,8 +576,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         else audioRef.current?.pause();
         setPlaying(false);
       },
-      next,
-      previous,
+      next: () => {
+        const queue = queueRef.current;
+        const index = queue.findIndex((track) => track.id === currentRef.current?.id);
+        const next = index >= 0 ? queue[index + 1] : undefined;
+        if (next) playRef.current(next);
+      },
+      previous: () => {
+        const track = currentRef.current;
+        if (!track) return;
+        if (progress > 3) {
+          if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
+          else if (audioRef.current) audioRef.current.currentTime = 0;
+          setProgress(0);
+          return;
+        }
+        const queue = queueRef.current;
+        const index = queue.findIndex((item) => item.id === track.id);
+        const previous = queue[index - 1];
+        if (previous) playRef.current(previous);
+        else {
+          if (track.mediaSource === "youtube") youtubeControlsRef.current?.seek(0);
+          else if (audioRef.current) audioRef.current.currentTime = 0;
+          setProgress(0);
+        }
+      },
       seek: (seconds) => {
         const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
         const position =
@@ -572,7 +613,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setProgress(position);
       },
     };
-  }, [duration, finished, next, previous, progress]);
+  }, [duration, finished, progress]);
 
   useEffect(() => {
     const session = getMediaSession();
@@ -614,8 +655,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     const fallbackArtwork = [
-      { src: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
+      { src: "/icons/app-icon-192-v2.png", sizes: "192x192", type: "image/png" },
+      { src: "/icons/app-icon-512-v2.png", sizes: "512x512", type: "image/png" },
     ];
     if (typeof MediaMetadata !== "function") return;
     const metadata = (artwork: MediaImage[]) =>
@@ -683,11 +724,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setLoopState(value);
   }, []);
 
-  const setAutoPlayNext = useCallback((value: boolean) => {
-    autoPlayNextRef.current = value;
-    setAutoPlayNextState(value);
-  }, []);
-
   const stop = useCallback(() => {
     playRequestRef.current += 1;
     const audio = audioRef.current;
@@ -708,6 +744,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     <PlayerContext.Provider
       value={{
         current,
+        youtubeRetryKey,
         playing,
         finished,
         loading,
@@ -716,19 +753,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         duration,
         volume,
         loop,
-        autoPlayNext,
+        setQueue,
         play: (t, queue) => void play(t, queue),
         toggle,
         setLoop,
-        setAutoPlayNext,
         seek,
         setVolume,
-        next,
-        previous,
         registerYoutubeControls,
         setYoutubePlaying,
         setYoutubeProgress,
-        setYoutubeVolume,
         setYoutubeError,
         finishYoutube,
         stop,

@@ -22,6 +22,13 @@ describe("isPersistableCatalogueKey", () => {
         },
       ]),
     ).toBe(true);
+    expect(
+      isPersistableCatalogueKey([
+        "beats",
+        "published-infinite",
+        { search: "", genre: "all", mood: "all", songKey: "all" },
+      ]),
+    ).toBe(false);
     expect(isPersistableCatalogueKey(["beat-filter-options"])).toBe(true);
     expect(isPersistableCatalogueKey(["public-catalogue-revision"])).toBe(true);
   });
