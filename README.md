@@ -40,45 +40,6 @@ native HTML audio and Media Session may continue playback and expose lock-screen
 the browser, operating system, power-saving settings, network, and device can still suspend or
 terminate background work. This behavior must be verified on physical devices.
 
-### Push notifications and app-icon badge
-
-Visitors can opt in from the bell menu after granting browser permission. When an administrator
-publishes a beat, the `send-beat-push` Edge Function sends a Push notification to active
-subscriptions. The Service Worker stores each notification locally, opens the beat when the
-notification is selected, and synchronizes the unread count with the Badging API where available.
-The in-app bell and unread count are the visual fallback; unread state is stored per browser
-installation and is not shared across a user's devices.
-
-Push delivery requires a VAPID key pair. Generate one with `npx web-push generate-vapid-keys`,
-set the matching public key in the frontend build environment, and configure the server secrets:
-
-```dotenv
-VITE_VAPID_PUBLIC_KEY=<same-public-key>
-```
-
-```sh
-supabase secrets set VAPID_PUBLIC_KEY=<public-key> VAPID_PRIVATE_KEY=<private-key> VAPID_SUBJECT=mailto:<contact-email>
-supabase db push
-supabase functions deploy send-beat-push
-```
-
-Keep the private key only in Supabase secrets; never expose it as a `VITE_` variable. Push and
-icon badges require HTTPS, an active Service Worker, browser permission, and platform support.
-Badging API support is not universal and is primarily relevant to installed web apps; it may show
-a dot or count, and the operating system can ignore or alter the requested value.
-
-| Platform | Push notification notes | Installed-app icon badge |
-| --- | --- | --- |
-| Android | Push is available in compatible browsers with permission and an active Service Worker. | Chrome for Android does not expose the Badging API; Android may show its own notification dot for an installed PWA. Numeric app badges are not guaranteed. |
-| iOS / iPadOS | Web Push requires a web app added to the Home Screen on iOS/iPadOS 16.4 or later. | The Badging API is available to supported Home Screen web apps on iOS/iPadOS 16.4 or later; notification and badge permissions remain user-controlled. |
-| Windows | Push is available in compatible browsers with permission and an active Service Worker. | Chrome 81+ and Edge 81+ support the Badging API for installed PWAs; browser, shell, and OS behavior may vary. |
-| macOS | Push is available in compatible browsers; Safari web push is associated with web apps added to the Dock. | Safari 17+ and Chrome/Edge 81+ expose the Badging API; an installed app and OS/browser support are required. |
-
-Check current browser support before relying on native behavior:
-[MDN Badging API](https://developer.mozilla.org/en-US/docs/Web/API/Badging_API),
-[MDN Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API), and
-[Apple Web Push for web apps](https://developer.apple.com/documentation/usernotifications/sending_web_push_notifications_in_web_apps_and_browsers).
-
 YouTube-backed beats use the YouTube iframe player only when no uploaded preview is available.
 The embed has separate browser and YouTube background-playback restrictions, so continuous
 screen-off playback and lock-screen controls are not guaranteed for those tracks.

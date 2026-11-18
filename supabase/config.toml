@@ -2,6 +2,3 @@ project_id = "nmazlkadzwbqucnxqixg"
 
 [functions.admin-delete-user]
 verify_jwt = true
-
-[functions.send-beat-push]
-verify_jwt = true
